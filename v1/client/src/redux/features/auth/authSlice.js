@@ -1,107 +1,152 @@
-// src/redux/features/auth/authSlice.js
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../../utils/api';
+import { createSlice } from "@reduxjs/toolkit";
+import apiClient from "../../../api/apiClient";
 
-// Async thunk for user login
-export const loginUser = createAsyncThunk(
-  'auth/loginUser',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/auth/login', credentials);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
-  }
-);
 
-// Async thunk for user registration
-export const registerUser = createAsyncThunk(
-  'auth/registerUser',
-  async (userData, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/auth/register', userData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
-  }
-);
+const token = localStorage.getItem("authToken");
+const userData = localStorage.getItem("userData");
 
-// Async thunk for token refresh
-export const refreshUserToken = createAsyncThunk(
-  'auth/refreshUserToken',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const { refreshToken } = getState().auth;
-      const response = await api.post('/auth/refresh-token', { token: refreshToken });
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data);
-    }
+
+// Helper function to safely parse JSON
+const safeParse = (data) => {
+  try {
+    return JSON.parse(data);
+  } catch (error) {
+    console.error("Failed to parse localStorage data:", error);
+    return null; // Return null if parsing fails
   }
-);
+};
+
+const initialState = {
+  user: userData ? safeParse(userData) : null,
+  token: token,
+  isAuthenticated: !!token,
+  loading: false,
+  error: null,
+};
 
 const authSlice = createSlice({
-  name: 'auth',
-  initialState: {
-    user: null,
-    token: localStorage.getItem('accessToken'),
-    refreshToken: localStorage.getItem('refreshToken'),
-    loading: false,
-    error: null,
-  },
+  name: "auth",
+  initialState,
   reducers: {
+    authStart: (state) => {
+      state.loading = true;
+      state.error = null;
+    },
+    authSuccess: (state, action) => {
+      const { userData, token } = action.payload;
+      state.user = userData;
+      state.token = token;
+      state.isAuthenticated = true;
+      state.loading = false;
+      state.error = null;
+
+      // Store the token and user data in localStorage for persistence
+      localStorage.setItem("authToken", token);
+      localStorage.setItem("userData", JSON.stringify(userData));
+    },
+    authFailure: (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+
+      // Clear all authentication-related data from localStorage
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userData");
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
-      state.refreshToken = null;
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      state.isAuthenticated = false;
+      state.loading = false;
+      state.error = null;
+
+      // Clear all authentication-related data from localStorage
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userData");
     },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Handle loginUser actions
-      .addCase(loginUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-        localStorage.setItem('accessToken', action.payload.accessToken);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Handle registerUser actions
-      .addCase(registerUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
-        localStorage.setItem('accessToken', action.payload.accessToken);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Handle refreshUserToken actions
-      .addCase(refreshUserToken.fulfilled, (state, action) => {
-        state.token = action.payload.accessToken;
-      });
+    updateUserProfile: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+    },
   },
 });
 
-export const { logout } = authSlice.actions;
+export const {
+  authStart,
+  authSuccess,
+  authFailure,
+  logout,
+  updateUserProfile,
+} = authSlice.actions;
+
+// Async Thunk Actions
+export const registerUser = (userData) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const response = await apiClient.post("/auth/register", userData);
+    dispatch(authSuccess(response));
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Registration failed"));
+  }
+};
+
+export const loginUser = (userData) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const response = await apiClient.post("/auth/login", userData);
+    dispatch(authSuccess(response));
+    window.location.href = "/";
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Login failed"));
+  }
+};
+
+export const logoutUser = () => async (dispatch) => {
+  try {
+    await apiClient.post("/auth/logout");
+    dispatch(logout());
+  } catch (error) {
+    console.error("Logout failed:", error);
+    dispatch(logout());
+  }
+};
+// Update Profile
+export const updateProfile = (formData) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const response = await apiClient.put("/auth/update-profile", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    dispatch(updateUserProfile(response));
+    dispatch(authSuccess(response));
+    return response; // Ensure the promise resolves with the response
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Failed to update profile"));
+    throw error; // Ensure the promise rejects with the error
+  }
+};
+
+// Change Password
+export const changePassword = (passwordData) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const response = await apiClient.post("/auth/change-password", passwordData);
+    dispatch(authSuccess({ user: response.user, token: response.token }));
+    return response; // Ensure the promise resolves with the response
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Failed to change password"));
+    throw error; // Ensure the promise rejects with the error
+  }
+};
+
+// Delete Account
+export const deleteAccount = () => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    await apiClient.delete("/auth/delete-account");
+    dispatch(logout()); // Clear user data and token
+    return true; // Ensure the promise resolves
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Failed to delete account"));
+    throw error; // Ensure the promise rejects with the error
+  }
+};
 export default authSlice.reducer;

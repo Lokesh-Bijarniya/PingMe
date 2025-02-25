@@ -1,24 +1,24 @@
 import React from "react";
+import { Plus, Search, ArrowLeft } from "lucide-react";
 
-const ChatListBar = () => {
+const ChatListBar = ({ isFriendsView, toggleView }) => {
   return (
     <div className="flex items-center justify-between p-6 border-b border-gray-300 bg-gray-100 shadow-md sticky top-0 z-10">
-      <h1 className="text-xl font-semibold">Messages</h1>
+      <h1 className="text-xl font-semibold">{isFriendsView ? "Friends" : "Messages"}</h1>
       <div className="flex items-center gap-4">
-      <h1>Edit Icon here</h1>
-        <h1>Search Icon here</h1>
-    
-        
-         {/* <input
-          type="text"
-          placeholder="Search..."
-          className="border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-        <img
-          src="https://via.placeholder.com/40"
-          alt="User Avatar"
-          className="w-10 h-10 rounded-full"
-        />  */}
+        {isFriendsView ? (
+          <button onClick={toggleView} className="p-2 rounded-full hover:bg-gray-200">
+            <ArrowLeft className="w-6 h-6 text-gray-600" />
+          </button>
+        ) : (
+          <button onClick={toggleView} className="p-2 rounded-full hover:bg-gray-200">
+            <Plus className="w-6 h-6 text-blue-600" />
+          </button>
+        )}
+
+        <button className="p-2 rounded-full hover:bg-gray-200">
+          <Search className="w-6 h-6 text-gray-600" />
+        </button>
       </div>
     </div>
   );

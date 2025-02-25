@@ -1,27 +1,39 @@
 import React, { useState } from "react";
+import { useSelector } from "react-redux";
 import ChatWindowNavbar from "../chatWindow-bar";
+import MessageInput from "./MessageInput"; // Import input component
 
 const ChatWindow = () => {
+  const selectedChat = useSelector((state) => state.chat.selectedChat);
+
+  // Initialize messages state
   const [messages, setMessages] = useState([
-    { sender: "Mas Happy", text: "Hey! How are you?", time: "05:00 PM" },
+    { sender: selectedChat?.name || "User", text: "Hey! How are you?", time: "05:00 PM" },
     { sender: "You", text: "I'm good, thank you!", time: "05:02 PM" },
   ]);
 
-  const [input, setInput] = useState("");
-
-  const handleSend = () => {
-    if (input.trim()) {
+  // Function to send a new message
+  const handleSendMessage = (text) => {
+    if (text.trim()) {
       setMessages((prev) => [
         ...prev,
-        { sender: "You", text: input, time: "Just now" },
+        { sender: "You", text, time: "Just now" },
       ]);
-      setInput("");
     }
   };
 
+  // Show a message if no chat is selected
+  if (!selectedChat) {
+    return (
+      <div className="flex-1 flex justify-center items-center text-gray-500">
+        Select a chat to start messaging
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col h-screen bg-white border border-gray-300">
-      <ChatWindowNavbar/>
+      <ChatWindowNavbar chat={selectedChat} />
       <div className="flex-1 overflow-y-auto p-4">
         {messages.map((msg, index) => (
           <div
@@ -39,21 +51,7 @@ const ChatWindow = () => {
           </div>
         ))}
       </div>
-      <div className="p-4 border-t flex items-center gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-        <button
-          onClick={handleSend}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg"
-        >
-          Send
-        </button>
-      </div>
+      <MessageInput onSendMessage={handleSendMessage} />
     </div>
   );
 };
