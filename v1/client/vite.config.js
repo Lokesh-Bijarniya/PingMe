@@ -4,4 +4,10 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
   ],
+  define: {
+    global: "window", // ✅ Define `global` for browser compatibility
+  },
+  optimizeDeps: {
+    include: ["events", "util"], // ✅ Ensure required modules are available
+  },
 })

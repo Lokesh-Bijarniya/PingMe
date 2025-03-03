@@ -1,84 +1,274 @@
-import React, { useState } from "react";
-import { Video, Mic, MicOff, PhoneOff, Users, Search, VideoOff, Expand } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import ContactsList from "../components/calls/ContactList";
+import CallWindow from "../components/calls/CallWindow";
+import IncomingCallPopup from "../components/calls/IncomingCallPopup";
+import SearchUsers from "../components/SearchUser";
+import { fetchCallHistory, setCurrentCall, sendCallRequest, clearCallState } from "../redux/features/call/callSlice";
+import { toast } from "react-toastify";
+import ringtone from "../../public/sounds/ringtone.mp3";
+import socket from '../services/socket';
+;
 
 const CallPage = () => {
+  const dispatch = useDispatch();
+  const { callHistory, currentCall, incomingCall } = useSelector((state) => state.call);
+  const [showSearch, setShowSearch] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [callType, setCallType] = useState("video");
+
+  // Call states
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
-  const [callActive, setCallActive] = useState(false);
-  const [currentCall, setCurrentCall] = useState(null);
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [isVideoSwapped, setIsVideoSwapped] = useState(false);
 
-  const contacts = [
-    { id: 1, name: "Alice Johnson", email: "alice@example.com" },
-    { id: 2, name: "Bob Smith", email: "bob@example.com" },
-    { id: 3, name: "Charlie Adams", email: "charlie@example.com" },
-  ];
+  const ringtoneRef = useRef(null);
 
-  const startCall = (contact) => {
-    setCurrentCall(contact);
-    setCallActive(true);
+
+  console.log("curr-call-ll",currentCall);
+
+  useEffect(() => {
+    dispatch(fetchCallHistory());
+
+    if (!ringtoneRef.current) {
+      ringtoneRef.current = new Audio(ringtone);
+      ringtoneRef.current.loop = true;
+    }
+
+    // Socket event listeners
+    const handleIncomingCall = (data) => {
+      dispatch({ type: "call/receiveCall", payload: data });
+      if (isAudioEnabled) ringtoneRef.current?.play().catch(console.error);
+    };
+
+    const handleCallAccepted = (data) => {
+      dispatch({ type: "call/setCurrentCall", payload: data });
+      ringtoneRef.current?.pause();
+    };
+
+    const handleCallRejected = () => {
+      console.log("📵 Call was rejected");
+      dispatch(clearCallState()); // ✅ Remove incoming call notification
+      ringtoneRef.current?.pause();
+  };
+  
+
+    const handleCallEnded = () => {
+      dispatch({ type: "call/clearCallState" });
+      ringtoneRef.current?.pause();
+    };
+
+    socket.on("INCOMING_CALL", handleIncomingCall);
+    socket.on("CALL_ACCEPTED", handleCallAccepted);
+    socket.on("CALL_REJECTED", handleCallRejected);
+    socket.on("CALL_ENDED", handleCallEnded);
+
+    return () => {
+      socket.off("INCOMING_CALL", handleIncomingCall);
+      socket.off("CALL_ACCEPTED", handleCallAccepted);
+      socket.off("CALL_REJECTED", handleCallRejected);
+      socket.off("CALL_ENDED", handleCallEnded);
+    };
+  }, [dispatch, isAudioEnabled]);
+
+
+  useEffect(() => {
+    const handleIncomingCall = (data) => {
+      console.log("📞 Incoming Call Data:", data); // ✅ Debugging line
+      dispatch({ type: "call/receiveCall", payload: data });
+  
+      if (isAudioEnabled) {
+        ringtoneRef.current?.play().catch(err => console.error("🔊 Ringtone error:", err));
+      }
+    };
+  
+    socket.on("INCOMING_CALL", handleIncomingCall);
+  
+    return () => {
+      socket.off("INCOMING_CALL", handleIncomingCall);
+    };
+  }, [dispatch, isAudioEnabled]);
+  
+
+
+  useEffect(() => {
+    const handleCallConnected = (data) => {
+      dispatch(setCurrentCall(prev => ({
+        ...prev,
+        peerId: data.peerId
+      })));
+    };
+  
+    socket.on("CALL_CONNECTED", handleCallConnected);
+    return () => socket.off("CALL_CONNECTED", handleCallConnected);
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (currentCall?.type) setCallType(currentCall.type);
+  }, [currentCall]);
+
+  useEffect(() => {
+    if (!incomingCall) ringtoneRef.current?.pause();
+  }, [incomingCall]);
+
+  // const handleEnableAudio = () => {
+  //   setIsAudioEnabled(true);
+  //   if (ringtoneRef.current) ringtoneRef.current.muted = false;
+  // };
+
+  useEffect(() => {
+    dispatch(fetchCallHistory()).then((res) => {
+      console.log("📜 Updated Call History:", res.payload);
+    });
+  }, [dispatch]);
+  
+
+  const startCall = async (user, type) => {
+    try {
+      await requestMediaPermissions();
+      const result = await dispatch(sendCallRequest({ recipientId: user._id, type })).unwrap();
+      if (!result.call) throw new Error("Missing call data in response");
+      console.log("📞 Call Started Successfully:", result);
+  
+      // Ensure peerId is present, fallback to socket.id if missing
+      const peerId = result.call.peerId || socket.id;
+      if (!peerId) throw new Error("Peer ID missing in call response");
+  
+      dispatch(setCurrentCall({
+        callId: result.call._id,
+        recipientId: result.call.recipientId,
+        type: result.call.type,
+        status: result.call.status,
+        peerId: peerId,
+        isIncoming: false,
+        callerSocketId: result.call.callerSocketId,
+        name: user.name || "Unknown",
+      }));
+    } catch (error) {
+      console.error("🚨 Call request failed:", error);
+      toast.error("Call failed. Please try again.");
+      dispatch(clearCallState());
+    }
+  };
+  
+  const handleAcceptCall = async () => {
+    if (!incomingCall) return;
+    await requestMediaPermissions();
+    
+    // Ensure peerId is set correctly for the recipient
+    const peerId = socket.id; // Use recipient's socket.id as peerId
+    if (!peerId) throw new Error("Recipient peer ID missing");
+  
+    dispatch(setCurrentCall({
+      callId: incomingCall.callId,
+      recipientId: incomingCall.recipientId,
+      type: incomingCall.type,
+      status: "accepted",
+      peerId: peerId,
+      isIncoming: false,
+      callerSocketId: incomingCall.callerSocketId,
+      name: incomingCall.name || "Unknown",
+    }));
+  
+    socket.emit("ACCEPT_CALL", {
+      callId: incomingCall.callId,
+      callerSocketId: incomingCall.callerSocketId,
+      recipientSocketId: peerId,
+    });
   };
 
-  const endCall = () => {
-    setCallActive(false);
-    setCurrentCall(null);
+
+
+  const handleRejectCall = () => {
+    if (!incomingCall) return;
+
+    socket.emit("REJECT_CALL", {
+      callId: incomingCall.callId,
+      callerSocketId: incomingCall.callerSocketId
+    });
+
+    dispatch(clearCallState());  // ✅ Correctly reset call state
+    console.log("Call is rejected");
+};
+
+
+  const handleEndCall = () => {
+    if (!currentCall?.callId) return;
+    socket.emit("END_CALL", { callId: currentCall.callId });
+
+    // Re-fetch call history
+  dispatch(fetchCallHistory());
   };
+
+  // Request permissions handler
+const requestMediaPermissions = async () => {
+  try {
+    await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    setIsAudioEnabled(true);
+  } catch (error) {
+    console.error("Permission denied:", error);
+  }
+};
 
   return (
-    <div className="flex flex-col h-screen p-4 bg-gray-100">
-      {/* Contacts List */}
-      <div className="flex-grow overflow-y-auto bg-white shadow-md rounded-lg p-4">
-        <h2 className="text-xl font-semibold mb-4">Contacts</h2>
-        <div className="relative mb-4">
-          <input type="text" placeholder="Search contacts..." className="w-full px-4 py-2 border rounded-md" />
-          <Search className="absolute right-3 top-3 text-gray-500 w-5 h-5" />
-        </div>
-        {contacts.map((contact) => (
-          <div key={contact.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg mb-2">
-            <div>
-              <h3 className="text-md font-medium">{contact.name}</h3>
-              <p className="text-sm text-gray-500">{contact.email}</p>
-            </div>
-            <button
-              onClick={() => startCall(contact)}
-              className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            >
-              <Video className="w-5 h-5" />
-            </button>
-          </div>
-        ))}
+    <div className="flex flex-col h-screen bg-gray-50 overflow-y-auto">
+      <div className="fixed bottom-6 right-6 flex gap-4">
+      {!isAudioEnabled && (
+        <button 
+          onClick={requestMediaPermissions}
+          className="bg-blue-500 text-white p-3 rounded-lg shadow-lg"
+        >
+          Enable Camera/Microphone
+        </button>
+      )}
+    </div>
+
+      {incomingCall && !currentCall && (
+        <IncomingCallPopup
+          caller={incomingCall}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
+        />
+      )}
+
+      <div className="flex justify-between items-center p-4 border-b">
+        <h1 className="text-xl font-semibold">Recent Calls</h1>
+        <button 
+          onClick={() => setShowSearch(!showSearch)} 
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        >
+          {showSearch ? "Close Search" : "New Call"}
+        </button>
       </div>
 
-      {/* Video Call Window */}
-      {callActive && currentCall && (
-        <div className={`fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 ${fullscreen ? "z-50" : "z-40"}`}>
-          <div className="relative bg-gray-900 w-full md:w-2/3 lg:w-1/2 h-3/4 rounded-lg overflow-hidden">
-            <div className="absolute top-3 left-3 text-white text-lg font-medium">{currentCall.name}</div>
-            {/* Video Placeholder */}
-            <div className="w-full h-full flex items-center justify-center bg-gray-800">
-              {isVideoOn ? (
-                <p className="text-white text-xl">Video Streaming...</p>
-              ) : (
-                <p className="text-white text-xl">Video Off</p>
-              )}
-            </div>
-            {/* Controls */}
-            <div className="absolute bottom-5 w-full flex justify-center space-x-4">
-              <button onClick={() => setIsMuted(!isMuted)} className="p-3 bg-gray-700 text-white rounded-full hover:bg-gray-600">
-                {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-              </button>
-              <button onClick={() => setIsVideoOn(!isVideoOn)} className="p-3 bg-gray-700 text-white rounded-full hover:bg-gray-600">
-                {isVideoOn ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
-              </button>
-              <button onClick={endCall} className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600">
-                <PhoneOff className="w-6 h-6" />
-              </button>
-              <button onClick={() => setFullscreen(!fullscreen)} className="p-3 bg-gray-700 text-white rounded-full hover:bg-gray-600">
-                <Expand className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
+      <div className="flex-1 flex">
+        <div className={`${showSearch ? "w-2/3" : "w-full"} p-4`}>
+          <ContactsList callHistory={callHistory} onStartCall={startCall} />
         </div>
+        {showSearch && (
+          <div className="w-1/2 border-r bg-white p-4">
+            <SearchUsers onCall={startCall} />
+          </div>
+        )}
+      </div>
+
+      {currentCall && (
+        <CallWindow
+          currentCall={currentCall}
+          isMuted={isMuted}
+          isVideoOn={isVideoOn}
+          isSpeakerMuted={isSpeakerMuted}
+          fullscreen={fullscreen}
+          setIsMuted={setIsMuted}
+          setIsVideoOn={setIsVideoOn}
+          setIsSpeakerMuted={setIsSpeakerMuted}
+          setFullscreen={setFullscreen}
+          isVideoSwapped={isVideoSwapped}
+          setIsVideoSwapped={setIsVideoSwapped}
+          endCall={handleEndCall}
+        />
       )}
     </div>
   );

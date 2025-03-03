@@ -1,5 +1,5 @@
 // SettingsPage.jsx
-import React, { useState } from "react";
+import React, { useState , useEffect} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { User, Lock, Bell, Moon, Shield, HelpCircle, LogOut } from "lucide-react";
 import {
@@ -7,6 +7,7 @@ import {
   changePassword,
   deleteAccount,
 } from "../redux/features/auth/authSlice";
+import { toast } from "react-toastify";
 
 const SettingsPage = () => {
   const dispatch = useDispatch();
@@ -24,64 +25,74 @@ const SettingsPage = () => {
     avatar: user?.avatar || "https://via.placeholder.com/150", // Default placeholder if no avatar exists
   });
 
-  // Function to handle saving updated profile
+
+  // Sync profile state with Redux user state after update
+  useEffect(() => {
+    setProfile({
+      name: user?.name || "",
+      email: user?.email || "",
+      avatar: user?.avatar || "https://via.placeholder.com/150",
+    });
+  }, [user]); // Runs when `user` changes
+
   const handleSaveProfile = async () => {
     try {
       const formData = new FormData();
       formData.append("name", profile.name);
       formData.append("email", profile.email);
-      
+  
       if (profile.avatar instanceof File) {
         formData.append("avatar", profile.avatar);
       }
   
-      const updatedUser = await dispatch(updateProfile(formData)).unwrap();
-      alert("Profile updated successfully!");
-      
-      setProfile((prev) => ({
-        ...prev,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        avatar: updatedUser.avatar,
-      }));
-      setIsEditing(false);
+      const response = await dispatch(updateProfile(formData));
+  
+      if (response) {
+        toast.success("Profile updated successfully!"); // Success toast
+        setProfile((prev) => ({
+          ...prev,
+          name: response.userData.name,
+          email: response.userData.email,
+          avatar: response.userData.avatar,
+          avatarPreview: response.userData.avatar,
+        }));
+        setIsEditing(false);
+      } else {
+        throw new Error("No user data received");
+      }
     } catch (error) {
       console.error("Failed to save profile:", error);
-      alert("Failed to update profile. Please try again.");
+      toast.error(error.message || "Failed to update profile."); // Error toast
     }
   };
   
-
-  // Function to handle changing password
   const handleChangePassword = async () => {
     const oldPassword = prompt("Enter your old password:");
     const newPassword = prompt("Enter your new password:");
-
+  
     if (oldPassword && newPassword) {
       try {
-        // Dispatch the changePassword action
-        await dispatch(changePassword({ oldPassword, newPassword })).unwrap();
-        alert("Password changed successfully!");
+        const response = await dispatch(changePassword({ oldPassword, newPassword }));
+        toast.success(response.message || "Password changed successfully!"); // Success toast
       } catch (error) {
         console.error("Failed to change password:", error);
-        alert(error || "Failed to change password. Please try again.");
+        toast.error(error.message || "Failed to change password."); // Error toast
       }
     }
   };
-
-  // Function to handle deleting account
+  
   const handleDeleteAccount = async () => {
     if (window.confirm("Are you sure you want to delete your account?")) {
       try {
-        // Dispatch the deleteAccount action
-        await dispatch(deleteAccount()).unwrap();
-        alert("Account deleted successfully!");
+        await dispatch(deleteAccount());
+        toast.success("Account deleted successfully!"); // Success toast
       } catch (error) {
         console.error("Failed to delete account:", error);
-        alert(error || "Failed to delete account. Please try again.");
+        toast.error(error.message || "Failed to delete account."); // Error toast
       }
     }
   };
+  
 
   return (
     <div className="w-full mx-auto py-10 px-4 sm:px-6 lg:px-8 overflow-y-auto">

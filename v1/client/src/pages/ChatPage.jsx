@@ -1,10 +1,24 @@
-import React from "react";
-import { useSelector } from "react-redux";
-import ChatList from "../components/Chat/ChatList";
-import ChatWindow from "../components/Chat/ChatWindow";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import SocketService from "../services/socket";
+import ChatList from "../components/messages/ChatList";
+import ChatWindow from "../components/messages/ChatWindow";
+import { deleteChat } from "../redux/features/chat/chatSlice";
 
 const ChatPage = () => {
+  const dispatch = useDispatch();
   const selectedChat = useSelector((state) => state.chat.selectedChat);
+
+  // Listen for chat deletion events via WebSocket
+  useEffect(() => {
+    const handleChatDeleted = (data) => {
+      const { chatId } = data;
+      dispatch(deleteChat(chatId)); // Dispatch an action to remove the chat from state
+    };
+
+    SocketService.on("CHAT_DELETED", handleChatDeleted);
+    return () => SocketService.off("CHAT_DELETED", handleChatDeleted);
+  }, [dispatch]);
 
   return (
     <div className="flex h-screen">

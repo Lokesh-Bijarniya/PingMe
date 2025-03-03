@@ -111,31 +111,73 @@ export const logoutUser = () => async (dispatch) => {
 // Update Profile
 export const updateProfile = (formData) => async (dispatch) => {
   dispatch(authStart());
+
   try {
     const response = await apiClient.put("/auth/update-profile", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    dispatch(updateUserProfile(response));
-    dispatch(authSuccess(response));
-    return response; // Ensure the promise resolves with the response
+
+    console.log("Profile Update Response:", response); // Debugging
+
+    if (response) {
+      const { userData, token } = response; // Extract userData & new token
+
+      dispatch(authSuccess(response)); // Update both user & token in Redux
+
+      localStorage.setItem("userData", JSON.stringify(userData)); // Update localStorage
+      localStorage.setItem("authToken", token); // Store new token
+
+      return response;
+    } else {
+      throw new Error("No data received from the server");
+    }
   } catch (error) {
-    dispatch(authFailure(error.response?.data?.message || "Failed to update profile"));
-    throw error; // Ensure the promise rejects with the error
+    console.error("Update Profile Error:", error);
+    dispatch(authFailure(error.message || "Failed to update profile"));
+    throw error;
   }
 };
+
+ 
 
 // Change Password
 export const changePassword = (passwordData) => async (dispatch) => {
   dispatch(authStart());
+
   try {
     const response = await apiClient.post("/auth/change-password", passwordData);
-    dispatch(authSuccess({ user: response.user, token: response.token }));
-    return response; // Ensure the promise resolves with the response
+
+    // Check if response and response.data exist
+    if (!response) {
+      throw new Error("Invalid response from the server");
+    }
+
+    const { userData, token, message } = response;
+
+    // Preserve existing user data if response does not contain new data
+    const existingUser = JSON.parse(localStorage.getItem("userData"));
+    const existingToken = localStorage.getItem("token");
+
+    if (userData) {
+      dispatch(authSuccess({ user: userData, token: token || existingToken }));
+      localStorage.setItem("userData", JSON.stringify(userData));
+    } else {
+      dispatch(authSuccess({ user: existingUser, token: existingToken }));
+    }
+
+    if (token) {
+      localStorage.setItem("token", token);
+    }
+
+    return { message: message || "Password changed successfully!" };
   } catch (error) {
-    dispatch(authFailure(error.response?.data?.message || "Failed to change password"));
-    throw error; // Ensure the promise rejects with the error
+    const errorMessage = error.response?.data?.message || "Failed to change password";
+    dispatch(authFailure(errorMessage));
+    throw new Error(errorMessage);
   }
 };
+
+
 
 // Delete Account
 export const deleteAccount = () => async (dispatch) => {

@@ -32,7 +32,7 @@ const Sidebar = () => {
 
   return (
     <div className="h-full w-60 bg-gray-100 flex flex-col items-center shadow-md md:w-72 lg:w-1/5 border border-gray-300">
-      <h2 className="text-lg font-bold w-full py-6 px-8 border-b border-gray-300">Dashboard</h2>
+      <h2 className="text-lg font-bold w-full py-6 px-8 border-b border-gray-300">PingMe</h2>
       <div className="w-full">
         {menuItems.map((item, index) => (
           <Link key={index} to={item.path} className="block">
