@@ -2,8 +2,8 @@ import axios from "axios";
 
 // Create an Axios instance
 const api = axios.create({
-  // baseURL: process.env.REACT_APP_API_BASE_URL || "http://localhost:8000/v1/api", // Use environment variable
-  baseURL : "http://localhost:8000/v1/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/v1/api", // Use environment variable
+  // baseURL : "http://localhost:8000/v1/api",
   timeout: 5000, // Timeout duration
 });
 
