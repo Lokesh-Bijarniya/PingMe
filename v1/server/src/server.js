@@ -107,12 +107,12 @@ app.get(
 
 // Handle Google OAuth callback
 app.get(
-  "/auth/google/callback",
+  "v1/api/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/login" }),
   (req, res) => {
     const token = jwt.sign({ id: req.user._id.toString() }, process.env.JWT_SECRET, { expiresIn: "30d" });
     res.cookie("token", token, { httpOnly: true });
-    res.redirect(`http://localhost:5173/?token=${token}`);
+    res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
   }
 );
 

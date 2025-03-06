@@ -20,6 +20,8 @@ const App = () => {
   const { isAuthenticated, token } = useSelector((state) => state.auth);
   const { selectedChat } = useSelector((state) => state.chat);
 
+
+
   useEffect(() => {
     if (isAuthenticated && token) {
       SocketService.connect(token); // ✅ Ensure WebSocket connects
