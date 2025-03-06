@@ -14,7 +14,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: '/auth/google/callback',  // Ensure this matches your redirect URI in Google Cloud Console
+      callbackURL: `${process.env.CLIENT_URL}/v1/api/auth/google/callback`,  // Ensure this matches your redirect URI in Google Cloud Console
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
