@@ -47,21 +47,40 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://fonts.googleapis.com"],
-        styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'", "https://ping-me-ruddy.vercel.app"],
+        scriptSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+        styleSrc: ["'self'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+        connectSrc: ["'self'", "https://ping-me-ruddy.vercel.app", "wss://pingme-wkue.onrender.com"],
+        frameSrc: ["'self'", "https://accounts.google.com"], 
       },
     },
   })
 );
 
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
-  credentials: true,
-}));
+
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://ping-me-ruddy.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
+
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
