@@ -1,7 +1,7 @@
 import express from "express";
 import  verifyToken  from "../middleware/authMiddleware.js";
 import {
-  createCallRequest,
+  // createCallRequest,
   // acceptCall,
   // rejectCall,
   // endCall,
@@ -11,7 +11,7 @@ import {
 const router = express.Router();
 
 // Create a new call request
-router.post("/call-request", verifyToken, createCallRequest);
+// router.post("/call-request", verifyToken, createCallRequest);
 
 // Accept a call request
 // router.put("/accept-call/:callId", verifyToken, acceptCall);

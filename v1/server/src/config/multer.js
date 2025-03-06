@@ -1,39 +1,28 @@
-// config/multer.js
 import multer from "multer";
-import fs from "fs";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import dotenv from "dotenv";
 
-const uploadDir = path.resolve("uploads");
+dotenv.config();
 
-
-// Ensure the directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure storage for temporary file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir); // Temporary folder to store uploaded files
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + "." + file.mimetype.split("/")[1]); // Generate unique filenames
+// 🔥 Configure Cloudinary Storage
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "chat_files", // Cloudinary folder
+    resource_type: "auto", // Auto-detect file type
+    format: async (req, file) => file.mimetype.split("/")[1], // Keep file format
   },
 });
 
-// File filter to allow only image files
+// File filter to allow all file types
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image")) {
-    cb(null, true); // Accept the file
-  } else {
-    cb(new Error("Only image files are allowed!"), false); // Reject the file
-  }
+  cb(null, true); // Accept all file types
 };
 
-// Export the configured Multer instance
+// Multer instance
 export const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: { fileSize: 1024 * 1024 * 5 }, // Limit file size to 5MB
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });

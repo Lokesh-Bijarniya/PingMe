@@ -8,14 +8,32 @@ import {
   clearSearchedUsers,
 } from "../../redux/features/chat/chatSlice";
 import { toast } from "react-toastify";
-import { Search, XCircle, UserPlus, CheckCircle, MinusCircle } from "lucide-react";
+import {
+  Search,
+  XCircle,
+  UserPlus,
+  CheckCircle,
+  MinusCircle,
+} from "lucide-react";
+import {setupSocketListeners, cleanupSocketListeners} from '../../services/socketListeners';
 
 const ChatList = () => {
   const dispatch = useDispatch();
-  const { chats = [], loading, searchedUsers } = useSelector((state) => state.chat);
+  const {
+    chats = [],
+    loading,
+    searchedUsers,
+    typingStatus
+  } = useSelector((state) => state.chat);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false); // Track if search was executed
+
+  console.log(chats);
+
+
+
+  
 
   useEffect(() => {
     if (!chats.length) {
@@ -41,71 +59,83 @@ const ChatList = () => {
     setIsSearching(false);
   };
 
+
   const handleStartChat = async (email) => {
     try {
-      const response = await dispatch(startChatByEmail(email)).unwrap();
-      dispatch(setSelectedChat(response));
-      dispatch(fetchChats());
-      setSearchQuery(""); // Clear search query
-      dispatch(clearSearchedUsers()); // Clear search results
+      const response = await dispatch(startChatByEmail(email)).unwrap(); // ✅ Ensure rejection throws an error
+
+      console.log("selected-chat", response);
+      
+      const newChat = {
+        chatId: response.chatId,
+        friend: response.friend || {
+          id: 'unknown',
+          name: 'Unknown User',
+          email: email,
+          avatar: '/default-avatar.png'
+        }
+      };
+  
+      dispatch(setSelectedChat(newChat));
+      dispatch({ type: "chat/addChat", payload: newChat });
+  
+      setSearchQuery(""); 
+      dispatch(clearSearchedUsers());
       toast.success("✅ Chat started successfully!");
     } catch (error) {
       console.error("Error starting chat:", error);
-
-      if (error.message === "User not found") {
-        toast.error("❌ User not found! Please check the email and try again.");
-      } else {
-        toast.warn("⚠️ Unable to start chat. Please try again later.");
-      }
+      toast.warn(`⚠️ ${error.message || "Unable to start chat. Please try again later."}`);
     }
-  };
+};
 
+  
   return (
     <div className="w-2/5 min-h-screen bg-gray-100 border-r p-4 flex flex-col">
- {/* 🔹 Add New Chat Input */}
-<div className="mb-4 relative">
-  <div className="flex items-center border border-gray-300 rounded-md overflow-hidden bg-white shadow-sm">
-    {/* ✉️ Input Field */}
-    <input
-      type="email"
-      value={searchQuery}
-      onChange={(e) => {
-        setSearchQuery(e.target.value);
-        setHasSearched(false); // Reset search state when typing
-        dispatch(clearSearchedUsers());
-      }}
-      placeholder="Enter name or email to start chat..."
-      className="w-full p-3 focus:outline-none text-gray-800"
-    />
+      {/* 🔹 Add New Chat Input */}
+      <div className="mb-4 relative">
+        <div className="flex items-center border border-gray-300 rounded-md overflow-hidden bg-white shadow-sm">
+          {/* ✉️ Input Field */}
+          <input
+            type="email"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setHasSearched(false); // Reset search state when typing
+              dispatch(clearSearchedUsers());
+            }}
+            placeholder="Enter name or email to start chat..."
+            className="w-full p-3 focus:outline-none text-gray-800"
+          />
 
-    {/* ❌ Clear Button (Shows only when input is not empty) */}
-    {searchQuery.trim() && (
-      <button
-        onClick={() => {
-          setSearchQuery(""); // Clear input
-          setHasSearched(false);
-          dispatch(clearSearchedUsers()); // Clear search state
-        }}
-        className="px-3 text-gray-400 hover:text-red-500 transition"
-      >
-        <XCircle className="w-5 h-5" />
-      </button>
-    )}
+          {/* ❌ Clear Button (Shows only when input is not empty) */}
+          {searchQuery.trim() && (
+            <button
+              onClick={() => {
+                setSearchQuery(""); // Clear input
+                setHasSearched(false);
+                dispatch(clearSearchedUsers()); // Clear search state
+              }}
+              className="px-3 text-gray-400 hover:text-red-500 transition"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+          )}
 
-    {/* ➕💬 Start Chat Button */}
-    <button
-      onClick={handleSearchUsers}
-      className="p-2  bg-blue-500 text-white flex items-center gap-1 hover:bg-blue-600 transition active:scale-95"
-    >
-      <UserPlus className="w-7 h-8" /> {/* ✅ Changed Icon to UserPlus (Lucide-React) */}
-    </button>
-  </div>
-</div>
-
-
+          {/* ➕💬 Start Chat Button */}
+          <button
+            onClick={handleSearchUsers}
+            className="p-2  bg-blue-500 text-white flex items-center gap-1 hover:bg-blue-600 transition active:scale-95"
+          >
+            <UserPlus className="w-7 h-8" />{" "}
+            {/* ✅ Changed Icon to UserPlus (Lucide-React) */}
+          </button>
+        </div>
+      </div>
 
       {/* 🔹 Search Results Section */}
-      {(isSearching || searchedUsers.length > 0 || (searchQuery.trim() && hasSearched)) && (
+      {(isSearching ||
+        searchedUsers.length > 0 ||
+        (searchQuery.trim() && hasSearched)) && (
         <div className="mb-4 bg-white p-4 rounded-lg shadow-lg relative">
           {/* 🔹 Header */}
           <div className="flex justify-between items-center mb-2">
@@ -124,7 +154,9 @@ const ChatList = () => {
 
           {/* 🔍 Loading Indicator */}
           {isSearching ? (
-            <p className="text-center text-gray-500 animate-pulse">🔍 Searching...</p>
+            <p className="text-center text-gray-500 animate-pulse">
+              🔍 Searching...
+            </p>
           ) : searchedUsers.length === 0 && hasSearched ? (
             // ✅ Show "No users found" ONLY IF search was executed and no results were found
             <p className="text-center text-gray-500">❌ No users found</p>
@@ -132,6 +164,7 @@ const ChatList = () => {
             // ✅ Display user search results
             <div className="max-h-60 overflow-y-auto space-y-2">
               {searchedUsers.map((user) => (
+                
                 <div
                   key={user._id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all border border-gray-200 shadow-sm"
@@ -177,19 +210,27 @@ const ChatList = () => {
               className="flex items-center gap-3 p-3 rounded-lg bg-white shadow-md hover:bg-gray-200 cursor-pointer transition-all my-2"
             >
               {/* Avatar */}
-              <img
-                src={chat.friend.avatar}
-                alt={chat.friend.name}
-                className="w-12 h-12 rounded-full object-cover border"
-              />
+              {chat.friend ? (
+                <img
+                  src={chat.friend.avatar || "https://via.placeholder.com/50"}
+                alt={chat.friend.name || "UNKNOWN"}
+                  className="w-12 h-12 rounded-full object-cover border"
+                />
+              ) : (
+                <p className="text-gray-500">Loading...</p>
+              )}
 
               {/* Chat Details */}
               <div className="flex-1">
                 <div className="flex justify-between">
-                  <p className="font-semibold text-gray-800">{chat.friend.name}</p>
+                  <p className="font-semibold text-gray-800">
+                    {chat.friend.name}
+                  </p>
                   <p
                     className={`text-xs ${
-                      chat.unread > 0 ? "font-semibold text-rose-400" : "text-gray-500"
+                      chat.unread > 0
+                        ? "font-semibold text-rose-400"
+                        : "text-gray-500"
                     }`}
                   >
                     {new Date(chat.updatedAt).toLocaleTimeString([], {
@@ -200,14 +241,14 @@ const ChatList = () => {
                   </p>
                 </div>
                 <p className="text-sm text-gray-500 truncate">
-                  {chat.typing ? (
-                    <span className="text-blue-500 font-semibold">Typing...</span>
-                  ) : chat.lastMessage ? (
-                    chat.lastMessage
-                  ) : (
-                    "No messages yet"
-                  )}
-                </p>
+  {typingStatus[chat.chatId] ? (
+    <span className="text-blue-500 font-semibold">Typing...</span>
+  ) : chat.lastMessage ? (
+    chat.lastMessage
+  ) : (
+    "No messages yet"
+  )}
+</p>
               </div>
 
               {/* Unread Indicator */}

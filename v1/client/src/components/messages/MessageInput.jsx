@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Paperclip, Smile, Send } from "lucide-react";
+import { Paperclip, Smile, Send, X } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
-import { useDebounce } from "../../hooks/useDebounce"; // Ensure this path is correct
+import { useDebounce } from "../../hooks/useDebounce"; // Ensure correct path
 import SocketService from "../../services/socket";
 import { useSelector } from "react-redux";
 
@@ -9,56 +9,51 @@ const MessageInput = ({ onSend, onTyping }) => {
   const selectedChat = useSelector((state) => state.chat.selectedChat);
   const [input, setInput] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
-  const [file, setFile] = useState(null); // For file upload
+  const [file, setFile] = useState(null);
   const typingTimeout = useRef(null);
 
-  // Handle emoji selection
+  // ✅ Handle emoji selection
   const handleEmojiSelect = (emoji) => {
     setInput((prev) => prev + emoji.emoji);
     setShowEmoji(false);
   };
 
-  // Handle message submission
-  const handleSubmit = () => {
+  // ✅ Handle message submission (Text & File)
+  const handleSubmit = async () => {
     if (input.trim() || file) {
-      onSend(input, file); // Pass both text and file
-      setInput(""); // Clear input
-      setFile(null); // Clear file
-      onTyping(false); // Stop typing indicator
+      await onSend(input, file);
+      setInput(""); // ✅ Clear input after sending
+      setFile(null); // ✅ Clear file selection
+      onTyping(false);
     }
   };
 
-  // Handle typing status
+  // ✅ Handle typing status (Optimized with debounce)
   const handleTyping = (isTyping) => {
-    if (onTyping) {
-      onTyping(isTyping);
-    }
-    SocketService.emit("TYPING", {
-      chatId: selectedChat?.chatId,
-      isTyping,
-    });
+    if (onTyping) onTyping(isTyping);
+    SocketService.emit("TYPING", { chatId: selectedChat?.chatId, isTyping });
   };
 
-  // Use debounce for typing indicator
   const debouncedHandleTyping = useDebounce(handleTyping, 500);
 
   useEffect(() => {
     if (input) {
-      debouncedHandleTyping(true); // Trigger typing indicator
+      debouncedHandleTyping(true);
       clearTimeout(typingTimeout.current);
-      typingTimeout.current = setTimeout(() => debouncedHandleTyping(false), 2000); // Stop after 2 seconds
+      typingTimeout.current = setTimeout(() => debouncedHandleTyping(false), 2000);
     } else {
-      debouncedHandleTyping(false); // Stop typing if input is empty
+      debouncedHandleTyping(false);
     }
   }, [input, debouncedHandleTyping]);
 
-  // Handle file upload
+  // ✅ Handle file upload (Preview & Send)
   const handleFileUpload = (e) => {
     const uploadedFile = e.target.files[0];
-    if (uploadedFile) {
-      setFile(uploadedFile); // Store the file in state
-    }
+    if (uploadedFile) setFile(uploadedFile);
   };
+
+  // ✅ Remove file preview
+  const handleRemoveFile = () => setFile(null);
 
   return (
     <div className="flex gap-2 items-center p-2 border-t">
@@ -72,9 +67,8 @@ const MessageInput = ({ onSend, onTyping }) => {
         </div>
       )}
 
-
-       {/* File Upload */}
-       <label htmlFor="file-upload" className="cursor-pointer">
+      {/* File Upload */}
+      <label htmlFor="file-upload" className="cursor-pointer">
         <Paperclip size={20} className="text-gray-500 hover:text-blue-500 ml-2" />
         <input
           id="file-upload"
@@ -85,6 +79,16 @@ const MessageInput = ({ onSend, onTyping }) => {
         />
       </label>
 
+      {/* File Preview (Before Sending) */}
+      {file && (
+        <div className="flex items-center gap-2 bg-gray-200 px-2 py-1 rounded-md">
+          <p className="text-sm text-gray-700">{file.name}</p>
+          <button onClick={handleRemoveFile} className="text-red-500 hover:text-red-700">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Input Field */}
       <input
         value={input}
@@ -93,8 +97,6 @@ const MessageInput = ({ onSend, onTyping }) => {
         placeholder="Type a message..."
         className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
-
-     
 
       {/* Send Button */}
       <button onClick={handleSubmit} className="ml-2 bg-blue-500 text-white px-4 py-2 rounded">

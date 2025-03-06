@@ -3,13 +3,19 @@ import mongoose from "mongoose";
 const callSchema = new mongoose.Schema(
   {
     callerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    recipientId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    type: { type: String, enum: ["audio", "video"], required: true },
-    status: { type: String, enum: ["ringing","pending", "accepted", "rejected", "ended"], default: "ringing" },
-    startedAt: { type: Date },
-    endedAt: { type: Date },
+    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    roomId: { type: String, required: true, unique: true }, // Unique room ID for call session
+    type: { type: String, enum: ["audio", "video"], required: true }, // Audio or Video call
+    callStart: { type: Date }, // Timestamp when call starts
+    callEnd: { type: Date }, // Timestamp when call ends
+    status: {
+      type: String,
+      enum: ["ringing", "pending", "accepted", "rejected", "ongoing", "missed", "ended"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Call", callSchema);
+const Call = mongoose.model("Call", callSchema);
+export default Call;

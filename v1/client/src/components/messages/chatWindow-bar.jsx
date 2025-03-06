@@ -4,7 +4,7 @@ import { Phone, Video, MoreVertical, Trash2 } from "lucide-react";
 
 const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
   // ✅ Always define hooks before any conditional return
-  const onlineStatus = useSelector((state) => state.chat.onlineStatus);
+  const { onlineStatus } = useSelector((state) => state.chat);
   const typingStatus = useSelector((state) => state.chat.typingStatus);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -15,6 +15,9 @@ const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
   const friend = chat?.friend || {};
   const isOnline = onlineStatus?.[friend?.id] || false;
   const isTyping = typingStatus?.[chat?.chatId] || false;
+
+
+   console.log("online status", onlineStatus);
 
   // ✅ Close dropdown menu when clicking outside
   useEffect(() => {

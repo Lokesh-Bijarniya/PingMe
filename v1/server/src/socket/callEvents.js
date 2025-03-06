@@ -1,160 +1,175 @@
 import Call from "../models/callModel.js";
+import { v4 as uuidv4 } from "uuid";
 
 export const setupCallEvents = (io, connectedUsers) => {
   io.on("connection", (socket) => {
-    console.log(`✅ User connected: ${socket.id}`);
+    const userId = socket.user?.id;
+    console.log(`📞 User connected for calls: ${userId}`);
 
-    // Get user ID from socket
-    const userId = socket.user?.id?.toString();
-    if (!userId) return;
 
-    // 🛠 Ensure `connectedUsers` stores socket IDs as a `Set`
-    if (!connectedUsers.has(userId) || !(connectedUsers.get(userId) instanceof Set)) {
-      connectedUsers.set(userId, new Set()); // Fix: Always store a Set
-    }
 
-    connectedUsers.get(userId).add(socket.id);
 
-    console.log(`📌 Full Connected Users Map:`, JSON.stringify([...connectedUsers.entries()]));
+    // 📌 1️⃣ Handle Call Signaling
+    socket.on("CALL_SIGNAL", ({ to, signal, callId }) => {
+      console.log(`📞 Forwarding signal from ${userId} to ${to}`, { signal });
 
-    // 📞 Call Acceptance Handler
-    socket.on("ACCEPT_CALL", async ({ callId, callerSocketId }) => {
-      try {
-        console.log(`✅ Accepting call ${callId} - Caller: ${callerSocketId}, Recipient: ${socket.id}`);
-
-        const call = await Call.findByIdAndUpdate(
-          callId,
-          {
-            status: "accepted",
-            startedAt: new Date(),
-            $addToSet: { participants: userId },
-          },
-          { new: true }
+      const receiverSockets = connectedUsers.get(to);
+      if (receiverSockets) {
+        receiverSockets.forEach((socketId) =>
+          io.to(socketId).emit("RECEIVE_SIGNAL", { signal, callId })
         );
-
-        if (!call) {
-          return socket.emit("CALL_ERROR", { message: "Call not found" });
-        }
-
-        const recipientPeerId = socket.id;
-        const callerPeerId = callerSocketId;
-
-        io.to(callerSocketId).emit("CALL_ACCEPTED", {
-          callId,
-          peerId: recipientPeerId,
-          type: call.type,
-        });
-
-        console.log("Call accepted")
-
-        if (connectedUsers.has(userId)) {
-          connectedUsers.get(userId).forEach((socketId) => {
-            io.to(socketId).emit("CALL_ACCEPTED", {
-              callId,
-              peerId: callerPeerId,
-              type: call.type,
-            });
-          });
-        }
-      } catch (error) {
-        console.error("❌ Accept call error:", error);
-        socket.emit("CALL_ERROR", "Failed to accept call");
+      } else {
+        console.warn(`⚠️ Receiver ${to} not found or offline`);
       }
     });
 
-    // ❌ Call Rejection Handler
-    socket.on("REJECT_CALL", async ({ callId, callerSocketId }) => {
+    // 📌 1️⃣ Initiate Call
+    socket.on("call:start", async ({ receiverId, type, peerId }, callback) => {
       try {
-        await Call.findByIdAndUpdate(callId, {
-          status: "rejected",
-          endedAt: new Date(),
-        });
-
-        io.to(callerSocketId).emit("CALL_REJECTED", { callId });
-
-        console.log("Call rejected")
-
-        if (connectedUsers.has(userId)) {
-          connectedUsers.get(userId).forEach((socketId) => {
-            io.to(socketId).emit("CALL_REJECTED", { callId });
-          });
+        if (!connectedUsers.has(receiverId)) {
+          return callback({ success: false, message: "Receiver is online but no active sockets found" });
         }
+        const receiverSockets = connectedUsers.get(receiverId);
+    
+        if (!receiverSockets || !Array.isArray(receiverSockets) || receiverSockets.length === 0) {
+          return callback({ success: false, message: "Receiver is online but no active sockets found" });
+        }
+    
+        const roomId = uuidv4();
+        const call = await Call.create({
+          callerId: socket.user.id,
+          receiverId,
+          type,
+          status: "ringing",
+          roomId,
+          peerId,  // 🔥 Store the peerId
+        });
+    
+        receiverSockets.forEach((socketId) => {
+          io.to(socketId).emit("call:incoming", {
+            callId: call._id,
+            caller: socket.user,
+            roomId,
+            type,
+            peerId, // 🔥 Send peerId to the receiver
+            name: socket.user.name || "Unknown Caller",
+          });
+        });
+    
+        return callback({ success: true, call });
       } catch (error) {
-        console.error("Reject call error:", error);
-        socket.emit("CALL_ERROR", "Failed to reject call");
+        console.error("❌ Call Initiation Error:", error);
+        callback({ success: false, message: "Call failed" });
       }
     });
+    
+    
+    
+    
+    
 
-    // 🚫 Call Termination Handler
-    socket.on("END_CALL", async ({ callId }) => {
+    // 📌 2️⃣ Accept Call
+    socket.on("call:accept", async ({ callId, roomId }, callback) => {
       try {
-        console.log(`📞 Ending call: ${callId}`);
-
         const call = await Call.findByIdAndUpdate(
           callId,
-          {
-            status: "ended",
-            endedAt: new Date(),
-          },
+          { status: "accepted", callStart: new Date() },
           { new: true }
         );
-
-        if (!call) return;
-
-        const participants = [call.callerId.toString(), call.recipientId.toString()];
-
-        participants.forEach((participantId) => {
-          if (connectedUsers.has(participantId)) {
-            connectedUsers.get(participantId).forEach((socketId) => {
-              io.to(socketId).emit("CALL_ENDED", { callId });
-            });
+    
+        if (call) {
+          const callerSockets = connectedUsers.get(call.callerId.toString());
+          if (callerSockets) {
+            [...callerSockets].forEach(socketId =>
+              io.to(socketId).emit("call:accepted", { callId, roomId, signal: call.signal })
+            );
           }
-        });
-
-        console.log(`✅ Call ${callId} marked as ended`);
-      } catch (error) {
-        console.error("❌ End call error:", error);
-        socket.emit("CALL_ERROR", "Failed to end call");
-      }
-    });
-
-    // 📡 WebRTC Signaling Handler
-   // In setupCallEvents.js
-socket.on("CALL_SIGNAL", ({ to, signal }) => {
-  const recipientId = to.toString();
-  console.log(`📤 Sending CALL_SIGNAL to ${recipientId} with signal:`, signal);
-
-  if (connectedUsers.has(recipientId)) {
-    connectedUsers.get(recipientId).forEach((socketId) => {
-      if (socketId !== socket.id) {
-        io.to(socketId).emit("RECEIVE_SIGNAL", {
-          from: socket.id,
-          signal,
-          timestamp: Date.now(),
-        });
-        console.log(`📨 Signal sent to socket ${socketId}`);
-      }
-    });
-  } else {
-    console.warn(`⚠️ No connected sockets for recipient ${recipientId}`);
-  }
-});
-
-socket.on("RECEIVE_SIGNAL", ({ from, signal }) => {
-  console.log(`📩 Received RECEIVE_SIGNAL from ${from} with signal:`, signal);
-  // Ensure this is handled by the peer (already done in CallWindow)
-});
-
-    // ❌ Disconnection Handler
-    socket.on("disconnect", () => {
-      if (connectedUsers.has(userId)) {
-        const sockets = connectedUsers.get(userId);
-        sockets.delete(socket.id);
-        if (sockets.size === 0) {
-          connectedUsers.delete(userId);
+          callback({ success: true, call });
+        } else {
+          callback({ success: false, message: "Call not found" });
         }
+      } catch (error) {
+        console.error("❌ Error accepting call:", error);
+        callback({ success: false, message: "Failed to accept call" });
       }
-      console.log(`❌ User disconnected: ${userId}`);
+    });
+    
+
+    // 📌 3️⃣ Reject Call
+    socket.on("call:reject", async ({ callId }, callback) => {
+      try {
+        const call = await Call.findByIdAndUpdate(
+          callId,
+          { status: "rejected", callEnd: new Date() },
+          { new: true }
+        );
+
+        if (call) {
+          const callerSockets = connectedUsers.get(call.callerId.toString());
+          if (callerSockets) {
+            [...callerSockets].forEach(socketId =>
+              io.to(socketId).emit("call:rejected", { callId })
+            );
+          }
+          callback({ success: true, call });
+        } else {
+          callback({ success: false, message: "Call not found" });
+        }
+      } catch (error) {
+        console.error("❌ Error rejecting call:", error);
+        callback({ success: false, message: "Failed to reject call" });
+      }
+    });
+
+    // 📌 4️⃣ End Call
+    socket.on("call:end", async ({ callId }, callback) => {
+      try {
+        const call = await Call.findByIdAndUpdate(
+          callId,
+          { status: "ended", callEnd: new Date() },
+          { new: true }
+        );
+
+        if (call) {
+          const receiverSockets = connectedUsers.get(call.receiverId.toString());
+          const callerSockets = connectedUsers.get(call.callerId.toString());
+
+          if (receiverSockets) {
+            [...receiverSockets].forEach(socketId =>
+              io.to(socketId).emit("call:ended", { callId })
+            );
+          }
+
+          if (callerSockets) {
+            [...callerSockets].forEach(socketId =>
+              io.to(socketId).emit("call:ended", { callId })
+            );
+          }
+
+          callback({ success: true, call });
+        } else {
+          callback({ success: false, message: "Call not found" });
+        }
+      } catch (error) {
+        console.error("❌ Error ending call:", error);
+        callback({ success: false, message: "Failed to end call" });
+      }
+    });
+
+
+    
+
+    // 📌 5️⃣ Handle Disconnection
+    socket.on("disconnect", () => {
+      const userId = socket.user?.id?.toString();
+      if (!userId || !connectedUsers.has(userId)) return;
+
+      const sockets = connectedUsers.get(userId);
+      sockets.delete(socket.id);
+
+      if (sockets.size === 0) {
+        connectedUsers.delete(userId);
+      }
     });
   });
 };
