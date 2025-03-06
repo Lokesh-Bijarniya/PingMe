@@ -2,9 +2,10 @@ import React, { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchMessages,
-  updateMessageStatus,
   deleteChat,
   setSelectedChat,
+  fetchChats,
+  removeChat
 } from "../../redux/features/chat/chatSlice";
 import SocketService from "../../services/socket";
 import MessageInput from "./MessageInput";
@@ -29,15 +30,15 @@ const ChatWindow = () => {
   }, [selectedChat, dispatch]);
 
   // ✅ Mark messages as read
-  useEffect(() => {
-    if (selectedChat) {
-      messages[selectedChat.chatId]?.forEach((msg) => {
-        if (msg.sender.id !== currentUser.id && msg.status !== "read") {
-          dispatch(updateMessageStatus({ messageId: msg.messageId, status: "read" }));
-        }
-      });
-    }
-  }, [selectedChat, messages, dispatch, currentUser]);
+  // useEffect(() => {
+  //   if (selectedChat) {
+  //     messages[selectedChat.chatId]?.forEach((msg) => {
+  //       if (msg.sender.id !== currentUser.id && msg.status !== "read") {
+  //         dispatch(updateMessageStatus({ messageId: msg.messageId, status: "read" }));
+  //       }
+  //     });
+  //   }
+  // }, [selectedChat, messages, dispatch, currentUser]);
 
   // ✅ Scroll to bottom
   const scrollToBottom = () => {
@@ -117,10 +118,12 @@ const ChatWindow = () => {
     if (window.confirm("Are you sure you want to delete this chat?")) {
       try {
         await SocketService.emit("DELETE_CHAT", { chatId });
-        dispatch(deleteChat(chatId)).then(() => {
-          dispatch(setSelectedChat(null));
-          toast.success("✅ Chat deleted successfully!");
-        });
+        await dispatch(deleteChat(chatId)).unwrap();
+
+       // In handleDeleteChat, update state first
+        dispatch(removeChat(chatId));
+        dispatch(fetchChats()); // Ensure state matches server
+        dispatch(setSelectedChat(null));
       } catch (error) {
         console.error("Error deleting chat:", error);
         toast.error("❌ Failed to delete chat. Please try again.");
@@ -199,7 +202,7 @@ const ChatWindow = () => {
             })}
             <div ref={messagesEndRef} />
           </div>
-          <MessageInput onSend={handleSendMessage} />
+          <MessageInput onSend={handleSendMessage} onTyping={() => {}} />
         </>
       ) : (
         <p className="text-center text-gray-500">Select a chat to start messaging</p>

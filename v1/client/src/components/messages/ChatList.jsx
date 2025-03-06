@@ -6,6 +6,7 @@ import {
   setSelectedChat,
   searchUsers,
   clearSearchedUsers,
+  addChat
 } from "../../redux/features/chat/chatSlice";
 import { toast } from "react-toastify";
 import {
@@ -15,7 +16,6 @@ import {
   CheckCircle,
   MinusCircle,
 } from "lucide-react";
-import {setupSocketListeners, cleanupSocketListeners} from '../../services/socketListeners';
 
 const ChatList = () => {
   const dispatch = useDispatch();
@@ -29,7 +29,7 @@ const ChatList = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false); // Track if search was executed
 
-  console.log(chats);
+  // console.log("search-users",searchUsers);
 
 
 
@@ -40,6 +40,11 @@ const ChatList = () => {
       dispatch(fetchChats());
     }
   }, [dispatch, chats]);
+
+
+useEffect(() => {
+  dispatch(fetchChats());
+}, [dispatch]); // Runs on mount and after actions
 
   const handleSearchUsers = async () => {
     if (!searchQuery.trim()) {
@@ -77,8 +82,10 @@ const ChatList = () => {
       };
   
       dispatch(setSelectedChat(newChat));
-      dispatch({ type: "chat/addChat", payload: newChat });
-  
+      
+      dispatch(addChat(newChat));
+      dispatch(fetchChats());
+   
       setSearchQuery(""); 
       dispatch(clearSearchedUsers());
       toast.success("✅ Chat started successfully!");

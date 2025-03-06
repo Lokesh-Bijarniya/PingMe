@@ -75,6 +75,9 @@ export const startChatByEmail = createAsyncThunk(
     try {
       const response = await api.post("/chats", { email });
 
+
+      console.log("start-chat-email",response);
+
       if (!response || !response.chatId) {
         console.warn("⚠️ API returned an invalid response:", response);
         return rejectWithValue("Invalid response from server");
@@ -101,18 +104,18 @@ export const searchUsers = createAsyncThunk(
 );
 
 // ✅ Update message status (mark as read)
-export const updateMessageStatus = createAsyncThunk(
-  "chat/updateMessageStatus",
-  async ({ messageId, chatId, status }, { rejectWithValue }) => {
-    try {
-      await api.put(`/messages/status/${messageId}`, { status });
+// export const updateMessageStatus = createAsyncThunk(
+//   "chat/updateMessageStatus",
+//   async ({ messageId, chatId, status }, { rejectWithValue }) => {
+//     try {
+//       await api.put(`/messages/status/${messageId}`, { status });
 
-      return { chatId, messageId, status };
-    } catch (err) {
-      return rejectWithValue(err.response?.data || "Failed to update message status");
-    }
-  }
-);
+//       return { chatId, messageId, status };
+//     } catch (err) {
+//       return rejectWithValue(err.response?.data || "Failed to update message status");
+//     }
+//   }
+// );
 
 // ✅ Slice Definition
 const chatSlice = createSlice({
@@ -164,6 +167,15 @@ const chatSlice = createSlice({
       state.typingStatus[chatId] = isTyping;
     },
 
+    // ✅ Add new chat instantly
+    addChat: (state, action) => {
+      state.chats.unshift(action.payload);
+    },
+    // ✅ Remove chat instantly
+    removeChat: (state, action) => {
+      state.chats = state.chats.filter(chat => chat.chatId !== action.payload);
+    },
+
     // ✅ Update user online status
     updateOnlineStatus: (state, action) => {
       const { onlineUsers } = action.payload;
@@ -209,9 +221,12 @@ const chatSlice = createSlice({
           (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
         );
       })
+      .addCase(searchUsers.fulfilled, (state, action) => {
+        state.searchedUsers = action.payload; // Store search results
+      })
       .addCase(deleteChat.fulfilled, (state, action) => {
         const chatId = action.payload;
-        state.chats = state.chats.filter((chat) => chat.chatId !== chatId);
+        state.chats = state.chats.filter(chat => chat.chatId !== chatId);
         delete state.messages[chatId];
         delete state.unreadCounts[chatId];
         if (state.selectedChat?.chatId === chatId) {
@@ -228,7 +243,12 @@ export const {
   updateOnlineStatus,
   setSelectedChat,
   clearSearchedUsers,
+  addChat,
+  removeChat,
 } = chatSlice.actions;
 
 // ✅ Export reducer
 export default chatSlice.reducer;
+
+
+

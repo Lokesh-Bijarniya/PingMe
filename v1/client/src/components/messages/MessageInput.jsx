@@ -22,9 +22,12 @@ const MessageInput = ({ onSend, onTyping }) => {
   const handleSubmit = async () => {
     if (input.trim() || file) {
       await onSend(input, file);
-      setInput(""); // ✅ Clear input after sending
-      setFile(null); // ✅ Clear file selection
-      onTyping(false);
+      setInput(""); 
+      setFile(null); 
+  
+      if (onTyping) {
+        onTyping(false);  // ✅ Ensure this is only called if onTyping exists
+      }
     }
   };
 
