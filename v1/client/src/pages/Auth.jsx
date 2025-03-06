@@ -54,7 +54,8 @@ const AuthPage = () => {
   };
 
   const handleGoogleAuth = () => {
-    window.location.href = `${apiClient}/auth/google`;
+    // window.location.href = "http://localhost:8000/v1/api/auth/google";
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`;
   };
 
   return (

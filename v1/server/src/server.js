@@ -101,13 +101,13 @@ app.get("/health", (req, res) => {
 
 // Initiate Google OAuth
 app.get(
-  "/auth/google",
+  "v1/api/auth/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
 // Handle Google OAuth callback
 app.get(
-  "v1/api/auth/google/callback",
+  "/v1/api/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/login" }),
   (req, res) => {
     const token = jwt.sign({ id: req.user._id.toString() }, process.env.JWT_SECRET, { expiresIn: "30d" });
