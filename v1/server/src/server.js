@@ -136,7 +136,7 @@ app.get("/health", (req, res) => {
 
 // Initiate Google OAuth
 app.get(
-  "v1/api/auth/google",
+  "/v1/api/auth/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
