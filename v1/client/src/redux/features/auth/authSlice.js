@@ -82,17 +82,29 @@ export const registerUser = (userData) => async (dispatch) => {
   dispatch(authStart());
   try {
     const response = await apiClient.post("/auth/register", userData);
-    dispatch(authSuccess(response));
+    const { token, ...user } = response;
+    
+    dispatch(authSuccess({ userData: user, token }));
+
+    // Fetch full user data immediately after registration
+    const userResponse = await apiClient.get("/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    dispatch(authSuccess({ userData: userResponse.userData, token }));
+
   } catch (error) {
     dispatch(authFailure(error.response?.data?.message || "Registration failed"));
   }
 };
 
+
 export const loginUser = (userData) => async (dispatch) => {
   dispatch(authStart());
   try {
     const response = await apiClient.post("/auth/login", userData);
-    dispatch(authSuccess(response));
+    const { token, ...user } = response.data;
+    dispatch(authSuccess({ userData: user, token }));
     window.location.href = "/";
   } catch (error) {
     dispatch(authFailure(error.response?.data?.message || "Login failed"));

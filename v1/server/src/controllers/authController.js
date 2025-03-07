@@ -17,7 +17,7 @@ const registerUser = async (req, res) => {
 
     const token = generateToken(user._id); // Generate JWT token
     res.cookie('token', token, { httpOnly: true }); // Set token as HTTP-only cookie
-    res.status(201).json({ _id: user._id, name: user.name, email: user.email, token }); // Include token in response
+    res.status(201).json({ _id: user._id, name: user.name, email: user.email, avatar: user.avatar,  token }); // Include token in response
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
