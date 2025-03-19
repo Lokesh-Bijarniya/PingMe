@@ -63,48 +63,55 @@ const initializeSocket = (server) => {
   io.use((socket, next) => {
     const userId = socket.user?.id.toString();
     if (!userId) return next(new Error("Invalid user ID"));
-  
-    // ✅ Ensure `connectedUsers` stores an array of socket IDs
-    if (!connectedUsers[userId]) {
-      connectedUsers[userId] = [];
+
+    // ✅ Ensure connectedUsers stores an array of socket IDs
+    if (!connectedUsers.has(userId)) {
+      connectedUsers.set(userId, new Set());
     }
-  
+
     // ✅ Avoid duplicate socket IDs
-    if (!connectedUsers[userId].includes(socket.id)) {
-      connectedUsers[userId].push(socket.id);
-    }
-  
+    connectedUsers.get(userId).add(socket.id);
+
     console.log("➕ Stored Socket ID:", {
       userId,
       socketId: socket.id,
-      storedAs: connectedUsers[userId], // Log stored sockets
+      storedAs: Array.from(connectedUsers.get(userId)), // Log stored sockets
     });
-  
+
     next();
   });
-  
-  
-  
 
   // Configure events AFTER auth
   setupChatEvents(io, connectedUsers);
   setupCallEvents(io, connectedUsers);
 
   // 📌 Handle global disconnection
-  io.on("disconnect", (socket) => {
-    const userId = socket.user?.id;
+  io.on("connection", (socket) => {
+    console.log("✅ User connected:", socket.user.id);
 
-    if (userId && connectedUsers.has(userId)) {
-      const sockets = connectedUsers.get(userId);
-      sockets.delete(socket.id);
+    // Emit the full list of online users to everyone
+    const onlineUsers = Array.from(connectedUsers.keys());
+    io.emit("ONLINE_STATUS", { onlineUsers });
 
-      if (sockets.size === 0) {
-        connectedUsers.delete(userId);
+    socket.on("disconnect", () => {
+      const userId = socket.user?.id;
+
+      if (userId && connectedUsers.has(userId)) {
+        const sockets = connectedUsers.get(userId);
+        sockets.delete(socket.id);
+
+        if (sockets.size === 0) {
+          connectedUsers.delete(userId);
+        }
+
+        console.log("🚫 User disconnected:", userId);
+        console.log("📌 Updated Connected Users Map:", JSON.stringify([...connectedUsers]));
+
+        // Emit updated online users list
+        const updatedOnlineUsers = Array.from(connectedUsers.keys());
+        io.emit("ONLINE_STATUS", { onlineUsers: updatedOnlineUsers });
       }
-
-      console.log(`🚫 User disconnected: ${userId}`);
-      console.log("📌 Updated Connected Users Map:", JSON.stringify([...connectedUsers]));
-    }
+    });
   });
 
   return { io, connectedUsers };

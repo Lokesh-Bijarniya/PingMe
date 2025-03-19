@@ -43,7 +43,7 @@ const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
   }
 
   return (
-    <div className="flex items-center justify-between bg-gray-100 p-4 shadow-md border-b border-gray-300 relative">
+    <div className="flex items-center justify-between border-b border-b-gray-300 p-4 bg-gray-100 relative">
       {/* 🔹 Left Side: User Info */}
       <div className="flex items-center gap-3">
         <img

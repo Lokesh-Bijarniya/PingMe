@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Home, Phone, MessageCircle, Users, Settings, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { logout } from "../redux/features/auth/authSlice"; // Import your logout action
+import { logoutUser } from "../redux/features/auth/authSlice"; 
+import logoImg from '/Logo.png'; 
 
 const Sidebar = () => {
   const location = useLocation();
@@ -21,18 +22,19 @@ const Sidebar = () => {
     // { name: "Files", icon: <File />, path: "/files" },
     { name: "Messages", icon: <MessageCircle />, path: "/chat" },
     { name: "Community", icon: <Users />, path: "/community" },
-    { name: "Call", icon: <Phone />, path: "/call" },
+    // { name: "Call", icon: <Phone />, path: "/call" },
     { name: "Settings", icon: <Settings />, path: "/settings" },
   ];
 
   const handleLogout = () => {
-    dispatch(logout()); // Dispatch logout action
-    navigate("/login"); // Redirect to login page
+    dispatch(logoutUser()); // ✅ Dispatch the logout action
   };
 
   return (
     <div className="h-full w-60 bg-gray-100 flex flex-col items-center shadow-md md:w-72 lg:w-1/5 border border-gray-300">
-      <h2 className="text-lg font-bold w-full py-6 px-8 border-b border-gray-300">PingMe</h2>
+      <h2 className="text-lg font-bold w-full p-2 bg-white  border-b border-gray-300">
+      <img src={logoImg} alt="Logo" className="w-full h-20 " />
+      </h2>
       <div className="w-full">
         {menuItems.map((item, index) => (
           <Link key={index} to={item.path} className="block">
@@ -53,7 +55,7 @@ const Sidebar = () => {
         <div className="flex items-center gap-2">
           {/* Use user avatar from Redux state */}
           <img
-            src={user?.avatar || "https://via.placeholder.com/40"} // Fallback image if no avatar exists
+            src={user?.avatar || "https://img.freepik.com/free-vector/user-circles-set_78370-4704.jpg?ga=GA1.1.1825498709.1739451093&semt=ais_hybrid"} // Fallback image if no avatar exists
             alt="User"
             className="rounded-full w-8 h-8"
           />
@@ -61,7 +63,7 @@ const Sidebar = () => {
           <h1 className="font-medium">{user?.name || "Guest"}</h1>
         </div>
         {/* Logout button */}
-        <LogOut className="text-red-500" onClick={handleLogout} />
+        <LogOut className="text-red-500"   onClick={handleLogout} />
       </div>
     </div>
   );

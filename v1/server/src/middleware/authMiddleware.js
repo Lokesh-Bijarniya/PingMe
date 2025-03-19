@@ -1,40 +1,49 @@
-// Middleware: verifyToken.js
 import jwt from "jsonwebtoken";
+import User from "../models/userModel.js";
 
-const verifyToken = (req, res, next) => {
-  // console.log("hit verifyToken");
+const verifyToken = async (req, res, next) => {
+  console.log("verify-token-hit");
   let token;
-  
 
-  // Check for token in headers (Authorization: Bearer <token>)
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.split(" ")[1]; // Extract token from "Bearer <token>"
-  }
-  // console.log("token: " + token);
-
-  // If no token in headers, check for token in cookies
-  if (!token && req.cookies) {
-    token = req.cookies.token; // Extract token from cookies
+  // Extract token from cookies
+  if (req.cookies?.accessToken) {
+    token = req.cookies.accessToken;
   }
 
-  // If no token is found, return an error
+  // Extract token from Authorization header (Bearer Token)
+  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
   if (!token) {
-    return res.status(401).json({ message: "Access denied. No token provided." });
+    return res.status(401).json({ message: "Not authorized, no token provided" });
   }
 
   try {
-    // Verify the token using the JWT_SECRET
+    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // console.log("Verified token",decoded);
+   
 
-    // Attach the decoded user data to the request object
-    req.user = decoded;
+    // Find the user by ID, excluding the password
+    const user = await User.findById(decoded.id).select("-password");
+    // console.log(user);
 
-    // Proceed to the next middleware/route handler
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // Check if the user is verified
+    if (!user.isVerified) {
+      return res.status(403).json({ message: "Please verify your email to access this resource" });
+    }
+
+    // Attach the user object to the request
+    req.user = user;
     next();
   } catch (error) {
-    // Handle invalid or expired tokens
-    return res.status(403).json({ message: "Invalid or expired token." });
+    console.error("🔴 Token verification failed:", error.message);
+    return res.status(401).json({ message: "Not authorized, invalid token" });
   }
 };
 

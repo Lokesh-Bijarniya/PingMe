@@ -6,6 +6,7 @@ import {
   updateProfile,
   changePassword,
   deleteAccount,
+  logoutUser
 } from "../redux/features/auth/authSlice";
 import { toast } from "react-toastify";
 
@@ -35,6 +36,7 @@ const SettingsPage = () => {
     });
   }, [user]); // Runs when `user` changes
 
+
   const handleSaveProfile = async () => {
     try {
       const formData = new FormData();
@@ -45,24 +47,25 @@ const SettingsPage = () => {
         formData.append("avatar", profile.avatar);
       }
   
-      const response = await dispatch(updateProfile(formData));
+      // ✅ Handle the dispatch response properly
+      const  response  = await dispatch(updateProfile(formData));
   
-      if (response) {
-        toast.success("Profile updated successfully!"); // Success toast
-        setProfile((prev) => ({
-          ...prev,
-          name: response.userData.name,
-          email: response.userData.email,
-          avatar: response.userData.avatar,
-          avatarPreview: response.userData.avatar,
-        }));
+      if (response?.user) {
+        toast.success("Profile updated successfully!");
+        setProfile({
+          ...profile,
+          name: response.user.name,
+          email: response.user.email,
+          avatar: response.user.avatar,
+          avatarPreview: response.user.avatar
+        });
         setIsEditing(false);
       } else {
-        throw new Error("No user data received");
+        throw new Error(response?.message || "Update failed");
       }
     } catch (error) {
-      console.error("Failed to save profile:", error);
-      toast.error(error.message || "Failed to update profile."); // Error toast
+      console.error("Save failed:", error);
+      toast.error(error.message);
     }
   };
   
@@ -259,11 +262,7 @@ const SettingsPage = () => {
         <div className="bg-white p-5 shadow-md rounded-lg">
           <button
             className="w-full px-4 py-2 text-red-600 bg-gray-100 rounded-md hover:bg-gray-200 flex items-center justify-center"
-            onClick={() => {
-              dispatch({ type: "auth/logout" }); // Dispatch logout action
-              localStorage.removeItem("authToken");
-              window.location.href = "/auth"; // Redirect to login page
-            }}
+            onClick={() => dispatch(logoutUser())}
           >
             <LogOut className="mr-2" /> Logout
           </button>

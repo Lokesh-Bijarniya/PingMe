@@ -36,15 +36,10 @@ const ChatList = () => {
   
 
   useEffect(() => {
-    if (!chats.length) {
+    if (!chats.length && !loading) {
       dispatch(fetchChats());
     }
-  }, [dispatch, chats]);
-
-
-useEffect(() => {
-  dispatch(fetchChats());
-}, [dispatch]); // Runs on mount and after actions
+  }, [dispatch, chats.length, loading]); // Only re-run if `chats.length` or `loading` changes
 
   const handleSearchUsers = async () => {
     if (!searchQuery.trim()) {
@@ -205,7 +200,10 @@ useEffect(() => {
         </div>
       )}
 
-      {/* 🔹 Chat List */}
+     
+      <h3 className="font-semibold text-gray-500 mb-2">Chats</h3>
+
+       {/* 🔹 Chat List */}
       <div className="flex-grow overflow-y-auto">
         {loading ? (
           <p className="text-center text-gray-500">Loading...</p>

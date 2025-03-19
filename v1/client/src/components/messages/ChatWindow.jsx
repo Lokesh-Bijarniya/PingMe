@@ -20,6 +20,8 @@ const ChatWindow = () => {
   const currentUser = useSelector((state) => state.auth.user); // Get current user
 
 
+
+
   console.log("chat-wind-msg",messages);
 
   // ✅ Load messages when selectedChat changes
@@ -145,7 +147,7 @@ const ChatWindow = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-1 flex-col h-full">
       <ChatWindowNavbar chat={selectedChat} onDeleteChat={handleDeleteChat} />
       {selectedChat ? (
         <>
@@ -183,7 +185,7 @@ const ChatWindow = () => {
                               download={msg.fileName}
                               className="bg-green-500 text-white px-2 py-1 rounded text-sm"
                             >
-                              Download
+                              View
                             </a>
                           </div>
                         )

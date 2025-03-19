@@ -1,10 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
 import apiClient from "../../../api/apiClient";
+import {toast} from 'react-toastify';
 
-
-const token = localStorage.getItem("authToken");
-const userData = localStorage.getItem("userData");
-
+const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+const userData = localStorage.getItem("userData") || sessionStorage.getItem("userData");
 
 // Helper function to safely parse JSON
 const safeParse = (data) => {
@@ -12,16 +11,18 @@ const safeParse = (data) => {
     return JSON.parse(data);
   } catch (error) {
     console.error("Failed to parse localStorage data:", error);
-    return null; // Return null if parsing fails
+    return null;
   }
 };
 
 const initialState = {
   user: userData ? safeParse(userData) : null,
-  token: token,
+  token,
   isAuthenticated: !!token,
   loading: false,
   error: null,
+  emailSent: false, // For email verification
+  resetEmailSent: false,
 };
 
 const authSlice = createSlice({
@@ -33,25 +34,43 @@ const authSlice = createSlice({
       state.error = null;
     },
     authSuccess: (state, action) => {
-      const { userData, token } = action.payload;
-      state.user = userData;
+      const { user, token, rememberMe } = action.payload;
+      
+      // ✅ Clear opposite storage first
+      if (rememberMe) {
+        sessionStorage.removeItem("authToken");
+        sessionStorage.removeItem("userData");
+      } else {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("userData");
+      }
+    
+      // ✅ Update state and storage
+      state.user = user;
       state.token = token;
       state.isAuthenticated = true;
       state.loading = false;
       state.error = null;
+    
+      if (rememberMe) {
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("userData", JSON.stringify(user));
+      } else {
+        sessionStorage.setItem("authToken", token);
+        sessionStorage.setItem("userData", JSON.stringify(user));
+      }
+    },    
+   // authSlice.js - authFailure reducer
+authFailure: (state, action) => {
+  state.loading = false;
+  state.error = action.payload;
 
-      // Store the token and user data in localStorage for persistence
-      localStorage.setItem("authToken", token);
-      localStorage.setItem("userData", JSON.stringify(userData));
-    },
-    authFailure: (state, action) => {
-      state.loading = false;
-      state.error = action.payload;
-
-      // Clear all authentication-related data from localStorage
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userData");
-    },
+  // Clear both localStorage and sessionStorage
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("userData");
+  sessionStorage.removeItem("authToken");
+  sessionStorage.removeItem("userData");
+},
     logout: (state) => {
       state.user = null;
       state.token = null;
@@ -59,148 +78,230 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
 
-      // Clear all authentication-related data from localStorage
+
       localStorage.removeItem("authToken");
       localStorage.removeItem("userData");
-    },
-    updateUserProfile: (state, action) => {
-      state.user = { ...state.user, ...action.payload };
-    },
+      sessionStorage.removeItem("authToken");
+      sessionStorage.removeItem("userData");
+    },    
+  extraReducers: (builder) => {
+    builder
+      // ✅ **Register User**
+      .addCase(registerUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // ✅ **Password Reset Request**
+      .addCase(passwordResetRequest.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(passwordResetRequest.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(passwordResetRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
+}
 });
 
-export const {
-  authStart,
-  authSuccess,
-  authFailure,
-  logout,
-  updateUserProfile,
-} = authSlice.actions;
+export const { authStart, authSuccess, authFailure, logout } = authSlice.actions;
 
-// Async Thunk Actions
+// ✅ **Register User**
 export const registerUser = (userData) => async (dispatch) => {
   dispatch(authStart());
   try {
-    const response = await apiClient.post("/auth/register", userData);
-    const { token, ...user } = response;
-    
-    dispatch(authSuccess({ userData: user, token }));
-
-    // Fetch full user data immediately after registration
-    const userResponse = await apiClient.get("/auth/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    dispatch(authSuccess({ userData: userResponse.userData, token }));
-
+    const response  = await apiClient.post("/auth/register", userData);
+    registerUser(response);
+    return { message: response.message, emailSent: true };
   } catch (error) {
     dispatch(authFailure(error.response?.data?.message || "Registration failed"));
   }
 };
 
-
+// ✅ **Login User**
 export const loginUser = (userData) => async (dispatch) => {
   dispatch(authStart());
   try {
-    const response = await apiClient.post("/auth/login", userData);
-    const { token, ...user } = response.data;
-    dispatch(authSuccess({ userData: user, token }));
-    window.location.href = "/";
+    const data = await apiClient.post("/auth/login", userData);
+    console.log(data);
+    
+    dispatch(authSuccess({ user: data.user, token: data.token, rememberMe: data.rememberMe}));
+    return data;
   } catch (error) {
     dispatch(authFailure(error.response?.data?.message || "Login failed"));
   }
 };
 
-export const logoutUser = () => async (dispatch) => {
+// ✅ **Fetch Current User**
+export const getMe = () => async (dispatch) => {
+  dispatch(authStart());
   try {
-    await apiClient.post("/auth/logout");
-    dispatch(logout());
+    const  data  = await apiClient.get("/auth/me");
+    dispatch(authSuccess({ 
+      user: data.user, 
+      token: localStorage.getItem("authToken") || sessionStorage.getItem("authToken"),
+      rememberMe: Boolean(localStorage.getItem("authToken")) 
+    }));
   } catch (error) {
-    console.error("Logout failed:", error);
-    dispatch(logout());
+    dispatch(authFailure("Authentication failed"));
+    dispatch(logoutUser());
   }
 };
-// Update Profile
-export const updateProfile = (formData) => async (dispatch) => {
+
+
+
+
+// ✅ **Verify Email**
+export const verifyEmail = (token) => async (dispatch) => {
   dispatch(authStart());
-
   try {
-    const response = await apiClient.put("/auth/update-profile", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    console.log("Profile Update Response:", response); // Debugging
-
-    if (response) {
-      const { userData, token } = response; // Extract userData & new token
-
-      dispatch(authSuccess(response)); // Update both user & token in Redux
-
-      localStorage.setItem("userData", JSON.stringify(userData)); // Update localStorage
-      localStorage.setItem("authToken", token); // Store new token
-
-      return response;
-    } else {
-      throw new Error("No data received from the server");
-    }
+    const data  = await apiClient.get(`/auth/verify-email?token=${token}`);
+    
+    // Dispatch authSuccess to log the user in
+    // dispatch(authSuccess({ 
+    //   user: data.user, 
+    //   token: data.token, 
+    //   rememberMe: true 
+    // }));
+    
+    return data;
   } catch (error) {
-    console.error("Update Profile Error:", error);
-    dispatch(authFailure(error.message || "Failed to update profile"));
+    dispatch(authFailure(error.response?.message || "Email verification failed"));
     throw error;
   }
 };
 
- 
 
-// Change Password
-export const changePassword = (passwordData) => async (dispatch) => {
+
+
+
+
+
+
+
+// ✅ **Forgot Password**
+// Add these actions to your authSlice.js
+export const passwordResetRequest = (email) => async (dispatch) => {
   dispatch(authStart());
-
   try {
-    const response = await apiClient.post("/auth/change-password", passwordData);
-
-    // Check if response and response.data exist
-    if (!response) {
-      throw new Error("Invalid response from the server");
-    }
-
-    const { userData, token, message } = response;
-
-    // Preserve existing user data if response does not contain new data
-    const existingUser = JSON.parse(localStorage.getItem("userData"));
-    const existingToken = localStorage.getItem("token");
-
-    if (userData) {
-      dispatch(authSuccess({ user: userData, token: token || existingToken }));
-      localStorage.setItem("userData", JSON.stringify(userData));
-    } else {
-      dispatch(authSuccess({ user: existingUser, token: existingToken }));
-    }
-
-    if (token) {
-      localStorage.setItem("token", token);
-    }
-
-    return { message: message || "Password changed successfully!" };
+    const response = await apiClient.post("/auth/password-reset-request", { email });
+    passwordResetRequest(response);
+   return { message: response.message, resetEmailSent: true };
   } catch (error) {
-    const errorMessage = error.response?.data?.message || "Failed to change password";
-    dispatch(authFailure(errorMessage));
-    throw new Error(errorMessage);
+    return error.response?.message || "Failed to request password reset";
   }
 };
 
 
 
-// Delete Account
+export const resetPassword = ({ token, newPassword }) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const data = await apiClient.post("/auth/reset-password", { token, newPassword });
+    toast.success(data.message);
+    return data.message;
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Failed to reset password"));
+  }
+};
+
+
+export const resendVerificationEmail = (email) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const {message} = await apiClient.post("/auth/resend-verification", { email });
+    return message
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Failed to resend verification email"));
+  }
+};
+
+// ✅ **Update Profile**
+export const updateProfile = (formData) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const data  = await apiClient.put("/auth/update-profile", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    // ✅ Get storage type from existing token
+    const rememberMe = Boolean(localStorage.getItem("authToken"));
+    
+    // ✅ Use correct storage for token
+    const token = rememberMe 
+      ? localStorage.getItem("authToken")
+      : sessionStorage.getItem("authToken");
+
+    dispatch(authSuccess({ 
+      user: data.user, 
+      token: token,
+      rememberMe 
+    }));
+    
+    return data;
+  } catch (error) {
+    dispatch(authFailure(error.message || "Failed to update profile"));
+  }
+};
+
+// ✅ **Change Password**
+export const changePassword = (passwordData) => async (dispatch) => {
+  dispatch(authStart());
+  try {
+    const response = await apiClient.post("/auth/change-password", passwordData);
+    return response;
+  } catch (error) {
+    dispatch(authFailure(error.response?.data?.message || "Failed to change password"));
+  }
+};
+
+// ✅ **Delete Account**
 export const deleteAccount = () => async (dispatch) => {
   dispatch(authStart());
   try {
     await apiClient.delete("/auth/delete-account");
-    dispatch(logout()); // Clear user data and token
-    return true; // Ensure the promise resolves
+    dispatch(logout());
   } catch (error) {
     dispatch(authFailure(error.response?.data?.message || "Failed to delete account"));
-    throw error; // Ensure the promise rejects with the error
   }
 };
+
+// ✅ **Logout User**
+export const logoutUser = () => async (dispatch) => {
+  try {
+    console.log("🚀 Sending logout request to server...");
+
+    // ✅ Call backend logout API to remove refreshToken
+    await apiClient.post("/auth/logout");
+
+    console.log("✅ Server logout successful. Clearing storage...");
+  } catch (error) {
+    console.error("❌ Logout failed:", error.response?.data?.message || error.message);
+  }
+
+  // ✅ Clear both localStorage & sessionStorage
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("userData");
+  sessionStorage.removeItem("authToken");
+  sessionStorage.removeItem("userData");
+
+  // ✅ Reset Redux state
+  dispatch(logout());
+
+  // ✅ Reload page to ensure full logout
+  window.location.href = "/auth";
+};
+
+
+
 export default authSlice.reducer;

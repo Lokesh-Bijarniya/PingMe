@@ -1,43 +1,49 @@
-import passport from 'passport';
-import GoogleStrategy from 'passport-google-oauth20'; 
-import User from '../models/userModel.js';
-import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import User from "../models/userModel.js";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-
-console.log(process.env.GOOGLE_CLIENT_ID);
-// Configure Passport with Google Strategy
+// ✅ Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-     callbackURL: `https://pingme-wkue.onrender.com/v1/api/auth/google/callback`,
+      callbackURL: process.env.GOOGLE_REDIRECT_URI,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await User.findOne({ googleId: profile.id });
+
         if (!user) {
           user = new User({
             name: profile.displayName,
             email: profile.emails[0].value,
             googleId: profile.id,
             avatar: profile.photos[0].value,
+            isVerified: true, // Automatically mark as verified
           });
           await user.save();
+        }else{
+          // Ensure existing Google users are marked as verified
+          if (!user.isVerified) {
+            user.isVerified = true;
+            await user.save();
+          }
         }
-        done(null, user);
+
+        return done(null, user); // ✅ Only return `user`, NOT `{ user, token }`
       } catch (error) {
-        done(error, null);
+        return done(error, null);
       }
     }
   )
 );
 
-// Serialize and Deserialize User
-passport.serializeUser((user, done) => done(null, user.id));
+// ✅ Serialize & Deserialize User
+passport.serializeUser((user, done) => done(null, user._id));
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);
@@ -46,11 +52,3 @@ passport.deserializeUser(async (id, done) => {
     done(error, null);
   }
 });
-
-// Handle Google Login
-const googleLogin = (req, res) => {
-  const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-  res.cookie('token', token, { httpOnly: true }).redirect('/');
-};
-
-export default googleLogin;

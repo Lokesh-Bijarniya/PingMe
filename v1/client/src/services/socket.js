@@ -8,14 +8,14 @@ class SocketService {
 
   // Connect to the WebSocket Server
   connect() {
-    const token = localStorage.getItem("authToken");
+    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     if (!token) {
       console.error("❌ WebSocket connection failed: No token found.");
       return;
     }
 
-    // const API_URL = "http://localhost:8000";
-    const API_URL = "https://pingme-wkue.onrender.com";
+    const API_URL = "http://localhost:8000";
+    // const API_URL = "https://pingme-wkue.onrender.com";
     this.socket = io(API_URL, {
       auth: { token },
       withCredentials: true,

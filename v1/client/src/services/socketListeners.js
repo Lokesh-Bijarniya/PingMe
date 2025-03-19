@@ -1,6 +1,19 @@
 import SocketService from "./socket.js";
-// import { receiveCall, clearCallState, setCurrentCall } from "../redux/features/call/callSlice";
-import { newMessageReceived, setTypingStatus, updateOnlineStatus } from "../redux/features/chat/chatSlice";
+import { 
+  newMessageReceived, 
+  setTypingStatus, 
+  updateOnlineStatus 
+} from "../redux/features/chat/chatSlice";
+
+import { 
+  newCommunityMessage,
+  updateCommunityPresence,
+  communityUpdated,
+  communityDeleted,
+  receiveCommunityInvite
+} from "../redux/features/chat/communitySlice";
+
+
 
 // ✅ Ensure Correct Ringtone Path
 const ringtone = new Audio("/sounds/ringtone.mp3");
@@ -26,46 +39,118 @@ const playRingtone = () => {
   }
 };
 
-// ✅ Setup WebSocket Listeners
+// ✅ Setup WebSocket Listeners (Updated for Communities)
 export const setupSocketListeners = (dispatch) => {
+
+
+  // Remove previous listeners to avoid duplicates
+  cleanupSocketListeners(); 
+  
 
   SocketService.on("connect", () => {
     console.log("✅ WebSocket connected.");
     SocketService.emit("SETUP_USER");
   });
 
-
-   // 📩 Handle New Messages (Including Files)
-   SocketService.on("NEW_MESSAGE", (data) => {
+  // Unified message handler
+  const handleNewMessage = (data) => {
     console.log("📩 Received NEW_MESSAGE:", data);
-
-    if (!data || !data.chatId || !data.message) {
-      console.error("❌ Invalid NEW_MESSAGE data received:", data);
+  
+    // Validate the incoming message data
+    if (!data || !data.chat || !data.message || !data.chat._id || !data.message._id) {
+      console.error("❌ Invalid message data:", data);
       return;
     }
+  
+    const isCommunity = data.chat?.chatType === "community" || data.message.isSystemMessage;
+    const messageData = {
+      messageId: data.message._id,
+      chatId: data.chat._id,
+      content: data.message.content,
+      sender: {
+        id: data.message.sender?._id || null,
+        name: data.message.sender?.name || "System",
+        avatar: data.message.sender?.avatar || "",
+      },
+      timestamp: data.message.timestamp,
+      isSystem: data.message.isSystemMessage || false,
+      status: data.message.status,
+      readBy: data.message.readBy || [],
+      isPinned: data.message.isPinned || false,
+    };
+  
 
-    const message = data.message;
-    const isFileMessage = !!message.attachment; // ✅ Check if it's a file
+    let unreadCount = {};
+    if (data.chat.unreadCount instanceof Map) {
+      unreadCount = Object.fromEntries(data.chat.unreadCount);
+    } else if (typeof data.chat.unreadCount === "object") {
+      unreadCount = data.chat.unreadCount;
+    }
+  
+    if (isCommunity) {
+      dispatch(newCommunityMessage({
+        communityId: data.communityId,
+        message: messageData,
+        unreadCount,
+      }));
+    } else {
+      dispatch(newMessageReceived({
+        chatId: data.chat._id,
+        message: messageData,
+        unreadCount,
+      }));
+    }
+  };
+ 
+  // Community-specific listeners
+  SocketService.on("NEW_COMMUNITY_MESSAGE", handleNewMessage);
 
-    dispatch(
-      newMessageReceived({
-        chatId: data.chatId,
-        message: {
-          messageId: message.messageId,
-          content: isFileMessage ? "" : message.content, // ✅ Remove "📎 Attachment"
-          sender: message.sender,
-          timestamp: message.timestamp,
-          attachment: message.attachment || null, // ✅ Ensure correct file URL is stored
-          fileType: message.fileType || null,
-          fileName: message.fileName || null,
-        },
-      })
-    );
+  SocketService.on("NEW_MESSAGE", handleNewMessage);
+
+
+  SocketService.on("MEMBER_LEFT", (data) => {
+    dispatch(communityActions.updateMembers(data));
+  });
+  
+  SocketService.on("YOU_LEFT_COMMUNITY", (data) => {
+    dispatch(communityActions.removeFromJoined(data.communityId));
   });
 
-  
-  
-  
+
+  SocketService.on("MEMBER_PRESENCE", (data) => {
+    console.log(`🟢 Community member ${data.userId} ${data.online ? "online" : "offline"}`);
+    dispatch(updateCommunityPresence(data));
+  });
+
+  SocketService.on("COMMUNITY_UPDATED", (community) => {
+    console.log("🔄 Community updated:", community._id);
+    dispatch(communityUpdated(community));
+  });
+
+  SocketService.on("COMMUNITY_DELETED", (communityId) => {
+    console.log("❌ Community deleted:", communityId);
+    dispatch(communityDeleted(communityId));
+  });
+
+  SocketService.on("COMMUNITY_INVITE", (invite) => {
+    console.log("📨 Received community invite:", invite);
+    dispatch(receiveCommunityInvite(invite));
+  });
+
+  // Keep existing listeners
+  SocketService.on("TYPING_STATUS", (data) => {
+    dispatch(setTypingStatus(data));
+  });
+
+  SocketService.on("ONLINE_STATUS", (data) => {
+    console.log(`🟢 User ${data.userId} is ${data.isOnline ? "online" : "offline"}`);
+    dispatch(updateOnlineStatus(data));
+  });
+
+  // ... keep existing call handlers ...
+
+
+
   
   
   
@@ -80,6 +165,16 @@ export const setupSocketListeners = (dispatch) => {
     console.log(`🟢 User ${data.userId} is now ${data.isOnline ? "online" : "offline"}`);
     dispatch(updateOnlineStatus(data));
   });
+
+
+};
+
+
+  // SocketService.onAny((event, data) => {
+  //   console.log(`📢 Event: ${event}`, data);
+  // });
+
+  
 
   // 📞 Incoming Calls + Play Ringtone
   // SocketService.on("INCOMING_CALL", (data) => {
@@ -134,19 +229,25 @@ export const setupSocketListeners = (dispatch) => {
   //   ringtone.pause();
   //   ringtone.currentTime = 0;
   // });
-};
+// };
 
 // 🔄 Cleanup WebSocket Listeners
 export const cleanupSocketListeners = () => {
   if (SocketService.connected) {
-    const events = ["NEW_MESSAGE", "TYPING_STATUS", "ONLINE_STATUS", "INCOMING_CALL", "CALL_REJECTED", "CALL_ENDED", "CALL_ACCEPTED"];
+    const events = [
+      "NEW_MESSAGE", "NEW_COMMUNITY_MESSAGE", "TYPING_STATUS", 
+      "ONLINE_STATUS", "MEMBER_PRESENCE", "COMMUNITY_UPDATED",
+      "COMMUNITY_DELETED", "COMMUNITY_INVITE", "INCOMING_CALL",
+      "CALL_REJECTED", "CALL_ENDED", "CALL_ACCEPTED"
+    ];
+
     events.forEach((event) => {
-      if (SocketService.hasListeners(event)) { // Hypothetical method to check listeners
+      if (SocketService.hasListeners(event)) {
         SocketService.off(event);
       }
     });
-    console.log("🛑 WebSocket listeners cleaned up.");
+    console.log("🛑 All WebSocket listeners cleaned up.");
   } else {
-    console.warn("⚠️ WebSocket not connected. Skipping listener cleanup.");
+    console.warn("⚠️ WebSocket not connected. Skipping cleanup.");
   }
 };

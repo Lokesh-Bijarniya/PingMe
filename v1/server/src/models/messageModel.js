@@ -16,7 +16,9 @@ const messageSchema = new mongoose.Schema({
   readBy: [{
     user: { type: Schema.Types.ObjectId, ref: 'User' },
     timestamp: Date
-  }]
+  }],
+  isPinned: { type: Boolean, default: false }, // ✅ Important messages
+  isSystemMessage: { type: Boolean, default: false } // ✅ System notifications for community
 });
 
 const Message = mongoose.model("Message", messageSchema);

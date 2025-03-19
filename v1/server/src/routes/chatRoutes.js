@@ -2,7 +2,7 @@ import express from 'express';
 import {
   getOrCreateChat,
   getChats,
-  deleteChat
+  deleteChat,
 } from '../controllers/chatController.js';
 import verifyToken from '../middleware/authMiddleware.js';
 
