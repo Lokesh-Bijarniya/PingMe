@@ -3,7 +3,6 @@ import CommunityList from "../components/community/CommunityList";
 import CommunityChat from "../components/community/CommunityChat";
 import CreateCommunityForm from "../components/community/CommunityForm"; 
 import { motion } from "framer-motion";
-import logoImg from "../assets/logoAuth.png";
 
 
 const Community = () => {
@@ -39,7 +38,7 @@ const Community = () => {
     >
       {/* Logo with bounce effect */}
       <motion.img
-        src={logoImg}
+        src="/logoAuth.png"
         alt="Chat"
         className="mx-auto mb-4 w-28 h-28"
         initial={{ opacity: 0, y: -20 }}
