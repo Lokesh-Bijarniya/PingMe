@@ -3,7 +3,7 @@ import CommunityList from "../components/community/CommunityList";
 import CommunityChat from "../components/community/CommunityChat";
 import CreateCommunityForm from "../components/community/CommunityForm"; 
 import { motion } from "framer-motion";
-import logo from '/public/logoAuth.png'
+import logo from '../assets/logoAuth.png'
 
 const Community = () => {
   const [selectedCommunity, setSelectedCommunity] = useState(null);

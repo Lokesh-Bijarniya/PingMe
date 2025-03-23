@@ -5,7 +5,7 @@ import ChatList from "../components/messages/ChatList";
 import ChatWindow from "../components/messages/ChatWindow";
 import { deleteChat } from "../redux/features/chat/chatSlice";
 import { motion } from "framer-motion";
-import logo from '/public/logoAuth.png'
+import logo from '../assets/logoAuth.png'
 
 const ChatPage = () => {
   const dispatch = useDispatch();
