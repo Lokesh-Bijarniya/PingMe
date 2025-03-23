@@ -1,23 +1,34 @@
 // SettingsPage.jsx
-import React, { useState , useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { User, Lock, Bell, Moon, Shield, HelpCircle, LogOut } from "lucide-react";
+import {
+  User,
+  Lock,
+  Bell,
+  Moon,
+  Shield,
+  HelpCircle,
+  LogOut,
+  MessageCircle,
+} from "lucide-react";
 import {
   updateProfile,
   changePassword,
   deleteAccount,
-  logoutUser
+  logoutUser,
 } from "../redux/features/auth/authSlice";
 import { toast } from "react-toastify";
 
 const SettingsPage = () => {
   const dispatch = useDispatch();
   const [isEditing, setIsEditing] = useState(false);
-
   // Get authenticated user's data from Redux
-  const user = useSelector((state) => state.auth.user);
-  const loading = useSelector((state) => state.auth.loading);
-  const error = useSelector((state) => state.auth.error);
+  const { user, loading, error } = useSelector((state) => state.auth);
+
+  // ✅ Dark Mode State
+  const [isDark, setIsDark] = useState(() => {
+    return localStorage.getItem("theme") === "dark";
+  });
 
   // Initialize profile state with user data from Redux
   const [profile, setProfile] = useState({
@@ -25,7 +36,6 @@ const SettingsPage = () => {
     email: user?.email || "",
     avatar: user?.avatar || "https://via.placeholder.com/150", // Default placeholder if no avatar exists
   });
-
 
   // Sync profile state with Redux user state after update
   useEffect(() => {
@@ -36,20 +46,19 @@ const SettingsPage = () => {
     });
   }, [user]); // Runs when `user` changes
 
-
   const handleSaveProfile = async () => {
     try {
       const formData = new FormData();
       formData.append("name", profile.name);
       formData.append("email", profile.email);
-  
+
       if (profile.avatar instanceof File) {
         formData.append("avatar", profile.avatar);
       }
-  
+
       // ✅ Handle the dispatch response properly
-      const  response  = await dispatch(updateProfile(formData));
-  
+      const response = await dispatch(updateProfile(formData));
+
       if (response?.user) {
         toast.success("Profile updated successfully!");
         setProfile({
@@ -57,7 +66,7 @@ const SettingsPage = () => {
           name: response.user.name,
           email: response.user.email,
           avatar: response.user.avatar,
-          avatarPreview: response.user.avatar
+          avatarPreview: response.user.avatar,
         });
         setIsEditing(false);
       } else {
@@ -68,14 +77,16 @@ const SettingsPage = () => {
       toast.error(error.message);
     }
   };
-  
+
   const handleChangePassword = async () => {
     const oldPassword = prompt("Enter your old password:");
     const newPassword = prompt("Enter your new password:");
-  
+
     if (oldPassword && newPassword) {
       try {
-        const response = await dispatch(changePassword({ oldPassword, newPassword }));
+        const response = await dispatch(
+          changePassword({ oldPassword, newPassword })
+        );
         toast.success(response.message || "Password changed successfully!"); // Success toast
       } catch (error) {
         console.error("Failed to change password:", error);
@@ -83,7 +94,7 @@ const SettingsPage = () => {
       }
     }
   };
-  
+
   const handleDeleteAccount = async () => {
     if (window.confirm("Are you sure you want to delete your account?")) {
       try {
@@ -95,16 +106,32 @@ const SettingsPage = () => {
       }
     }
   };
-  
+
+  // ✅ Apply dark mode on load
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDark]);
+
+  const toggleDarkMode = () => {
+    setIsDark((prev) => !prev);
+  };
 
   return (
     <div className="w-full mx-auto py-10 px-4 sm:px-6 lg:px-8 overflow-y-auto">
-      <h2 className="text-2xl font-semibold mb-6 text-center sm:text-left">Settings</h2>
+      <h2 className="text-2xl font-semibold mb-6 text-center sm:text-left">
+        Settings
+      </h2>
       <div className="space-y-6">
         {/* Profile Section */}
         <div className="bg-white p-5 shadow-md rounded-lg">
           <h3 className="flex items-center text-lg font-medium mb-4">
-            <User className="mr-2 text-blue-500" /> Profile
+            <User className="mr-2 text-blue-500 " /> Profile
           </h3>
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <img
@@ -131,14 +158,18 @@ const SettingsPage = () => {
                 type="text"
                 placeholder="Name"
                 value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, name: e.target.value })
+                }
                 className="w-full px-4 py-2 border rounded"
               />
               <input
                 type="email"
                 placeholder="Email"
                 value={profile.email}
-                onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, email: e.target.value })
+                }
                 className="w-full px-4 py-2 border rounded"
               />
               <input
@@ -147,7 +178,11 @@ const SettingsPage = () => {
                 onChange={(e) => {
                   const file = e.target.files[0];
                   if (file) {
-                    setProfile({ ...profile, avatar: file, avatarPreview: URL.createObjectURL(file) });
+                    setProfile({
+                      ...profile,
+                      avatar: file,
+                      avatarPreview: URL.createObjectURL(file),
+                    });
                   }
                 }}
                 className="w-full px-4 py-2 border rounded"
@@ -204,12 +239,12 @@ const SettingsPage = () => {
           <div className="space-y-2">
             <label className="flex items-center justify-between py-2">
               <span>Message Notifications</span>
-              <input type="checkbox" className="w-5 h-5" defaultChecked />
+              <input type="checkbox" disabled className="w-5 h-5" />
             </label>
-            <label className="flex items-center justify-between py-2">
+            {/* <label className="flex items-center justify-between py-2">
               <span>Call Notifications</span>
               <input type="checkbox" className="w-5 h-5" defaultChecked />
-            </label>
+            </label> */}
           </div>
         </div>
 
@@ -223,39 +258,98 @@ const SettingsPage = () => {
             <input
               type="checkbox"
               className="w-5 h-5"
-              checked=""
+              onChange={toggleDarkMode}
+              checked={isDark}
             />
           </label>
         </div>
 
         {/* Security & Privacy */}
-        <div className="bg-white p-5 shadow-md rounded-lg">
+        <div className="bg-white  p-5 shadow-md rounded-lg">
           <h3 className="flex items-center text-lg font-medium mb-4">
             <Shield className="mr-2 text-green-500" /> Security & Privacy
           </h3>
           <div className="space-y-2">
-            <button className="w-full text-left px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+            <button
+              className="w-full text-left px-4 py-2 text-gray-700  bg-gray-100  rounded-md hover:bg-gray-200 "
+              onClick={() =>
+                alert("Manage Blocked Users feature is coming soon! 🚀")
+              }
+            >
               Manage Blocked Users
             </button>
-            <button className="w-full text-left px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+            <button
+              className="w-full text-left px-4 py-2 text-gray-700  bg-gray-100 rounded-md hover:bg-gray-200"
+              onClick={() =>
+                alert("Two-Factor Authentication (2FA) is coming soon! 🔒")
+              }
+            >
               Enable Two-Factor Authentication (2FA)
             </button>
           </div>
         </div>
 
-        {/* Help & Support */}
+        {/* Help & FAQs Section */}
         <div className="bg-white p-5 shadow-md rounded-lg">
           <h3 className="flex items-center text-lg font-medium mb-4">
-            <HelpCircle className="mr-2 text-blue-500" /> Help & Support
+            <HelpCircle className="mr-2 text-blue-500" /> Help & FAQs
           </h3>
-          <div className="space-y-2">
-            <button className="w-full text-left px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
-              Contact Support
-            </button>
-            <button className="w-full text-left px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
-              FAQs
-            </button>
+          <div className="space-y-4">
+            <details className="bg-gray-100 p-3 rounded-md">
+              <summary className="font-medium cursor-pointer">
+                How do I start a chat on PingMe?
+              </summary>
+              <p className="text-sm text-gray-600 mt-2">
+                To start a chat, simply go to the <strong>"Search"</strong> tab
+                and search for a user by their email. Once you find them, click
+                on their name to begin a conversation.
+              </p>
+            </details>
+
+            <details className="bg-gray-100 p-3 rounded-md">
+              <summary className="font-medium cursor-pointer">
+                Can I send images and files?
+              </summary>
+              <p className="text-sm text-gray-600 mt-2">
+                Yes! Click on the attachment icon in the chat window to upload
+                and send images, documents, or videos.
+              </p>
+            </details>
+
+            <details className="bg-gray-100 p-3 rounded-md">
+              <summary className="font-medium cursor-pointer">
+                How do I enable dark mode?
+              </summary>
+              <p className="text-sm text-gray-600 mt-2">
+                You can enable dark mode in the "Appearance" section of the
+                settings by toggling the Dark Mode switch.
+              </p>
+            </details>
+
+            <details className="bg-gray-100 p-3 rounded-md">
+              <summary className="font-medium cursor-pointer">
+                Is my chat history saved?
+              </summary>
+              <p className="text-sm text-gray-600 mt-2">
+                Yes, your messages are stored securely. However, you can delete
+                individual messages or clear entire conversations.
+              </p>
+            </details>
           </div>
+        </div>
+
+        {/* Contact Support */}
+        <div className="bg-white p-5 shadow-md rounded-lg">
+          <h3 className="flex items-center text-lg font-medium mb-4">
+            <MessageCircle className="mr-2 text-green-500" /> Contact Support
+          </h3>
+          <p className="text-sm text-gray-600">
+            Need help? Our support team is available 24/7. Click below to get in
+            touch.
+          </p>
+          <button className=" mt-3 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+            <a href="mailto:pingme@info.com">Contact Support</a>
+          </button>
         </div>
 
         {/* Logout */}

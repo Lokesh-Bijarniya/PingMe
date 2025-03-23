@@ -24,18 +24,23 @@
 ### Frontend
 - React.js (with Hooks & Context API)
 - Redux Toolkit (For State Management)
-- TailwindCSS (For Modern UI)
-- Axios (For API Requests)
+- React Router (For Client-Side Routing)
+- TailwindCSS & Material-UI (For UI Styling)
+- Axios & React Query (For API Requests & Caching)
+- Framer Motion (For Animations)
+- React Toastify (For Notifications)
+- React Markdown (For Rendering Markdown)
 - Socket.io-client (For Real-Time Communication)
 
 ### Backend
 - Node.js & Express.js (For REST API)
 - MongoDB & Mongoose (For Database Management)
 - Socket.io (For WebSockets & Real-Time Messaging)
-- JSON Web Tokens (JWT) (For Secure Authentication)
-- Multer (For File Uploads)
+- JWT & Passport.js (For Authentication)
+- Multer & Cloudinary (For File Uploads)
 - Bcrypt.js (For Password Hashing)
-- Cloudinary (For Image & Video Storage)
+- Express Rate Limit & Helmet (For Security)
+- Dotenv (For Environment Variables)
 
 ### Deployment & Dev Tools
 - **Vercel / Netlify** (For Frontend Hosting)
@@ -54,33 +59,34 @@
 /client
 │── public/             # Static assets (index.html, icons, etc.)
 │── src/
+|   ├── api/     
+|   ├── assets/   
 │   ├── components/     # Reusable UI components
-│   ├── pages/          # Page components (Login, Chat, Profile)
-│   ├── context/        # Context API for state management
+│   ├── pages/          # Page components (Login, Chat, Profile)      
 │   ├── redux/          # Redux state management
 │   ├── hooks/          # Custom React hooks
 │   ├── services/       # API services (Axios requests)
-│   ├── utils/          # Helper functions
-│   ├── App.js          # Main app component
-│   ├── index.js        # Root file
+│   ├── App.jsx          # Main app component
+│   ├── main.js        # Root file
 │── .env                # Environment variables
 │── package.json        # Dependencies & scripts
 ```
 
 ### Backend (`/server`)
 ```
-/server
-│── config/             # Configuration files (DB, JWT, etc.)
-│── controllers/        # Route logic (chat, auth, users)
-│── models/            # MongoDB Schemas (User, Message, Chat)
-│── routes/            # API endpoints (chatRoutes, authRoutes, etc.)
-│── middleware/        # Authentication & security middleware
-│── sockets/          # WebSocket events & handling
-│── uploads/         # Temporary file storage
-│── index.js         # Server entry point
-│── .env             # Environment variables
-│── package.json     # Dependencies & scripts
-```
+
+/server           # Static assets (index.html, icons, etc.)
+│── src/
+|   ├── config/             # Configuration files (DB, JWT, etc.)
+|   ├── controllers/        # Route logic (chat, auth, users)
+│   ├── models/            # MongoDB Schemas (User, Message, Chat)
+│   ├── routes/            # API endpoints (chatRoutes, authRoutes, etc.)     
+│   ├── middleware/        # Authentication & security middleware
+│   ├── sockets/          # WebSocket events & handling
+│   ├── uploads/         # Temporary file storage
+│   ├── server.js         # Server entry point
+│── .env                # Environment variables
+│── package.json  
 
 ---
 
@@ -88,7 +94,7 @@
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/yourusername/pingMe-clone.git
+git clone https://github.com/Lokesh-Bijarniya/Team-4_PingMe.git
 cd pingMe-clone
 ```
 
@@ -110,8 +116,7 @@ Create a `.env` file in both `client/` and `server/` folders with the following 
 
 #### Client (`client/.env`)
 ```
-REACT_APP_API_URL=http://localhost:5000
-REACT_APP_SOCKET_URL=http://localhost:5000
+REACT_APP_API_URL=http://localhost:5173
 ```
 
 #### Server (`server/.env`)
@@ -145,8 +150,8 @@ npm start
 ### 🔹 Chat Interface
 ![Chat Screen](https://via.placeholder.com/600x300?text=Chat+Screen)
 
-### 🔹 Group Chats
-![Group Chat](https://via.placeholder.com/600x300?text=Group+Chat)
+### 🔹 Community Chats
+![Community Chat](https://via.placeholder.com/600x300?text=Group+Chat)
 
 ---
 
@@ -166,20 +171,44 @@ git push origin main
 ---
 
 ## 🛠️ APIs & Endpoints
-### **Auth Routes**
-- `POST /api/auth/signup` - Register a new user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/user` - Get user profile
+### **Auth Routes** (v1/api/auth)
+- `POST /register` - Register a new user
+- `POST /login` - Login user
+- `GET /me` - Get user profile (Requires authentication)
+- `POST /refresh-token` - Refresh authentication token
+- `POST /password-reset-request` - Request password reset link
+- `POST /reset-password` - Reset password using token
+- `GET /verify-email` - Verify email through verification link
+- `POST /resend-verification` - Resend email verification link
+- `GET /google` - Google OAuth login
+- `GET /google/callback` - Google OAuth callback
+- `PUT /update-profile` - Update user profile (Requires authentication)
+- `POST /change-password` - Change user password (Requires authentication)
+- `DELETE /delete-account` - Delete user account (Requires authentication)
+- `POST /logout` - Logout user (Requires authentication)
+- `GET /search` - Search users by name or email (Requires authentication)
 
-### **Chat Routes**
-- `POST /api/chats/create` - Create a chat
-- `GET /api/chats/:id` - Get chat messages
-- `POST /api/messages/send` - Send a message
+### **Chat Routes** (v1/api/chats)
+- `POST /` - Create or get a direct chat (Requires authentication)
+- `GET /` - Get all chats with last message (Requires authentication)
+- `GET /:chatId` - Get messages in a chat (Requires authentication)
+- `DELETE /:chatId` - Delete a chat (Requires authentication)
 
-### **Socket Events**
+### **Chat Routes** (/v1/api/communities)
+- `POST /` - Create a new community (Requires authentication)
+- `GET /` - Get all joined communities (Requires authentication)
+- `GET /:communityId/messages` - Get messages from a community (Requires authentication)
+- `POST /:id/join` - Join a community (Requires authentication)
+- `POST /:id/leave` - Leave a community (Requires authentication)
+- `DELETE /:id` - Delete a community who admin (Requires authentication)
+
+### **Socket Events** 
 - `message` - Send and receive messages
 - `typing` - Show typing indicator
 - `online-status` - Track online users
+- `join-chat` - For join the chat room
+- `leave-chat` - For leave the chat room
+- `upload-file` - For upload the file of chat
 
 ---
 
@@ -195,5 +224,11 @@ git push origin main
 ## 📄 License
 This project is **MIT Licensed**. Feel free to use and modify it!
 
+## 👤 Author  
+**[Lokesh Bijarniya](https://github.com/Lokesh-Bijarniya)**
+
+## 🔖 Tags  
+`#MERN` `#Socket.io` `#Real-Time Chat` `#React` `#Node.js` `#MongoDB`
+
+
 💡 Happy Coding! 🚀
-# Team-4_PingMe

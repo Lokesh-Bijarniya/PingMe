@@ -6,7 +6,7 @@ import {
   setSelectedChat,
   searchUsers,
   clearSearchedUsers,
-  addChat
+  addChat,
 } from "../../redux/features/chat/chatSlice";
 import { toast } from "react-toastify";
 import {
@@ -23,7 +23,8 @@ const ChatList = () => {
     chats = [],
     loading,
     searchedUsers,
-    typingStatus
+    typingStatus,
+    unreadCount
   } = useSelector((state) => state.chat);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -31,10 +32,9 @@ const ChatList = () => {
 
   // console.log("search-users",searchUsers);
 
+  // console.log(chats);
 
-
-  
-
+  // console.log("unread",unreadCount);
   useEffect(() => {
     if (!chats.length && !loading) {
       dispatch(fetchChats());
@@ -59,38 +59,38 @@ const ChatList = () => {
     setIsSearching(false);
   };
 
-
   const handleStartChat = async (email) => {
     try {
       const response = await dispatch(startChatByEmail(email)).unwrap(); // ✅ Ensure rejection throws an error
 
-      console.log("selected-chat", response);
-      
+      // console.log("selected-chat", response);
+
       const newChat = {
         chatId: response.chatId,
         friend: response.friend || {
-          id: 'unknown',
-          name: 'Unknown User',
+          id: "unknown",
+          name: "Unknown User",
           email: email,
-          avatar: '/default-avatar.png'
-        }
+          avatar: "/default-avatar.png",
+        },
       };
-  
+
       dispatch(setSelectedChat(newChat));
-      
+
       dispatch(addChat(newChat));
       dispatch(fetchChats());
-   
-      setSearchQuery(""); 
+
+      setSearchQuery("");
       dispatch(clearSearchedUsers());
       toast.success("✅ Chat started successfully!");
     } catch (error) {
       console.error("Error starting chat:", error);
-      toast.warn(`⚠️ ${error.message || "Unable to start chat. Please try again later."}`);
+      toast.warn(
+        `⚠️ ${error.message || "Unable to start chat. Please try again later."}`
+      );
     }
-};
+  };
 
-  
   return (
     <div className="w-2/5 min-h-screen bg-gray-100 border-r p-4 flex flex-col">
       {/* 🔹 Add New Chat Input */}
@@ -166,7 +166,6 @@ const ChatList = () => {
             // ✅ Display user search results
             <div className="max-h-60 overflow-y-auto space-y-2">
               {searchedUsers.map((user) => (
-                
                 <div
                   key={user._id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all border border-gray-200 shadow-sm"
@@ -200,10 +199,9 @@ const ChatList = () => {
         </div>
       )}
 
-     
       <h3 className="font-semibold text-gray-500 mb-2">Chats</h3>
 
-       {/* 🔹 Chat List */}
+      {/* 🔹 Chat List */}
       <div className="flex-grow overflow-y-auto">
         {loading ? (
           <p className="text-center text-gray-500">Loading...</p>
@@ -218,7 +216,7 @@ const ChatList = () => {
               {chat.friend ? (
                 <img
                   src={chat.friend.avatar || "https://via.placeholder.com/50"}
-                alt={chat.friend.name || "UNKNOWN"}
+                  alt={chat.friend.name || "UNKNOWN"}
                   className="w-12 h-12 rounded-full object-cover border"
                 />
               ) : (
@@ -228,12 +226,15 @@ const ChatList = () => {
               {/* Chat Details */}
               <div className="flex-1">
                 <div className="flex justify-between">
+                  {/* Friend's Name */}
                   <p className="font-semibold text-gray-800">
                     {chat.friend.name}
                   </p>
+
+                  {/* Last Updated Time */}
                   <p
                     className={`text-xs ${
-                      chat.unread > 0
+                      chat?.unreadCount > 0
                         ? "font-semibold text-rose-400"
                         : "text-gray-500"
                     }`}
@@ -245,23 +246,36 @@ const ChatList = () => {
                     })}
                   </p>
                 </div>
-                <p className="text-sm text-gray-500 truncate">
-  {typingStatus[chat.chatId] ? (
-    <span className="text-blue-500 font-semibold">Typing...</span>
-  ) : chat.lastMessage ? (
-    chat.lastMessage
-  ) : (
-    "No messages yet"
-  )}
-</p>
-              </div>
 
-              {/* Unread Indicator */}
-              {chat.unread > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                  {chat.unread}
-                </span>
-              )}
+                <div className="flex justify-between">
+                  {/* Last Message or Typing Status */}
+                  <p className="text-sm text-gray-500 truncate">
+                    {typingStatus[chat.chatId] ? (
+                      <span className="text-blue-500 font-semibold">
+                        Typing...
+                      </span>
+                    ) : chat.lastMessage ? (
+                      chat.lastMessage
+                    ) : (
+                      "No messages yet"
+                    )}
+                  </p>
+
+                  {/* Unread Message Count */}
+                  {chat?.unreadCount > 0 && (
+                    <span className="text-xs font-semibold text-white bg-rose-500 px-2 py-1 rounded-full">
+                      {chat?.unreadCount}
+                    </span>
+                  )}
+
+                  {/* Unread Indicator */}
+                  {chat.unread > 0 && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      {chat.unread}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           ))
         ) : (

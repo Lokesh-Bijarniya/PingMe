@@ -2,7 +2,8 @@ import express from 'express';
 import {
   getOrCreateChat,
   getChats,
-  deleteChat,
+  deleteDirectChat,
+  getMessages
 } from '../controllers/chatController.js';
 import verifyToken from '../middleware/authMiddleware.js';
 
@@ -13,6 +14,8 @@ router.post('/', verifyToken, getOrCreateChat);
 // Get all chat sessions with last message
 router.get('/', verifyToken, getChats);
 
-router.delete("/:chatId", verifyToken, deleteChat);
+router.get("/:chatId", verifyToken, getMessages);
+
+router.delete("/:chatId", verifyToken, deleteDirectChat);
 
 export default router;

@@ -1,71 +1,49 @@
 import { io } from "socket.io-client";
 
-
 class SocketService {
   constructor() {
-    this.socket = null;
+    this.chatSocket = null;
+    this.communitySocket = null;
+    this.API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   }
 
-  // Connect to the WebSocket Server
-  connect() {
-    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+  connect(token) {
     if (!token) {
-      console.error("❌ WebSocket connection failed: No token found.");
+      console.error("WebSocket connection failed: Missing token");
       return;
     }
 
-    const API_URL = "http://localhost:8000";
-    // const API_URL = "https://pingme-wkue.onrender.com";
-    this.socket = io(API_URL, {
+    this.chatSocket = io(`${this.API_URL}/chat`, {
       auth: { token },
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-      reconnectionDelay: 5000,
-      reconnectionAttempts: 5,
-      timeout: 30000,
+      transports: ["websocket"],
     });
 
-    this.socket.on("connect", () => {
-      console.log("✅ WebSocket connected:", this.socket.id);
+    this.communitySocket = io(`${this.API_URL}/community`, {
+      auth: { token },
+      transports: ["websocket"],
     });
-
-    this.socket.on("connect_error", (err) => {
-      console.error("❌ WebSocket connection error:", err.message);
-    });
-
-    this.socket.on("disconnect", (reason) => {
-      console.warn("⚠️ WebSocket disconnected:", reason);
-    });
-
-    console.log("🔌 WebSocket initialized...");
   }
 
   disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-      console.log("🔌 WebSocket disconnected.");
-    }
-  }
-
-  on(event, callback) {
-    this.socket?.on(event, callback);
-  }
-
-  off(event) {
-    this.socket?.off(event);
-  }
-
-  emit(event, data) {
-    return new Promise((resolve, reject) => {
-      if (!this.socket) return reject("⚠️ WebSocket not connected.");
-
-      console.log(`📡 Emitting event: ${event}`, data);
-      this.socket.emit(event, data, (response) => {
-        response?.error ? reject(response.error) : resolve(response);
-      });
+    [this.chatSocket, this.communitySocket].forEach(socket => {
+      socket?.disconnect();
+      socket = null;
     });
   }
+
+  // Chat-specific methods
+  chat = {
+    emit: (event, data) => this.chatSocket?.emit(event, data),
+    on: (event, callback) => this.chatSocket?.on(event, callback),
+    off: (event) => this.chatSocket?.off(event),
+  };
+
+  // Community-specific methods
+  community = {
+    emit: (event, data) => this.communitySocket?.emit(event, data),
+    on: (event, callback) => this.communitySocket?.on(event, callback),
+    off: (event) => this.communitySocket?.off(event),
+  };
 }
 
 export default new SocketService();

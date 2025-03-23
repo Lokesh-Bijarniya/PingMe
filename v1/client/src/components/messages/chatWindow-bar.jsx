@@ -2,19 +2,21 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { Phone, Video, MoreVertical, Trash2 } from "lucide-react";
 
-const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
-  // ✅ Always define hooks before any conditional return
+const ChatWindowNavbar = ({ chat, onDeleteChat }) => {
+  const {user} = useSelector((state)=>state.auth);
   const { onlineStatus } = useSelector((state) => state.chat);
   const typingStatus = useSelector((state) => state.chat.typingStatus);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  
 
-  console.log("nav-chat",chat)
+  // console.log("nav-chat",chat)
 
   // ✅ Always define these variables before returning
   const friend = chat?.friend || {};
   const isOnline = onlineStatus?.[friend?.id] || false;
   const isTyping = typingStatus?.[chat?.chatId] || false;
+  const lastActive = user?.lastActive || null
 
 
    console.log("online status", onlineStatus);
@@ -41,6 +43,7 @@ const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
       </div>
     );
   }
+  
 
   return (
     <div className="flex items-center justify-between border-b border-b-gray-300 p-4 bg-gray-100 relative">
@@ -54,7 +57,7 @@ const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
         <div>
           <p className="font-semibold">{friend.name || "Unknown User"}</p>
           <p className="text-sm text-gray-500">
-            {isTyping ? "Typing..." : isOnline ? "🟢 Online" : "⚪ Offline"}
+            {isTyping ? "Typing..." : isOnline ? "🟢 Online" : formatLastSeen(lastActive)}
           </p>
         </div>
       </div>
@@ -63,20 +66,18 @@ const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
       <div className="flex items-center gap-4 relative">
         {/* 📞 Call Button */}
         <button
-          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition"
-          onClick={() => onCall(friend)}
-          disabled={!isOnline} // ✅ Disable call if offline
+          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition cursor-not-allowed"
+          disabled 
         >
-          <Phone className={`w-5 h-5 ${isOnline ? "text-green-600" : "text-gray-400"}`} />
+          <Phone className={`w-5 h-5 text-gray-400`} />
         </button>
 
         {/* 🎥 Video Call Button */}
         <button
-          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition"
-          onClick={() => onCall(friend, true)} // Pass true for video call
-          disabled={!isOnline}
+          className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition cursor-not-allowed"
+          disabled
         >
-          <Video className={`w-5 h-5 ${isOnline ? "text-blue-600" : "text-gray-400"}`} />
+          <Video className={`w-5 h-5 text-gray-400`} />
         </button>
 
         {/* 🔹 More Actions Dropdown */}
@@ -110,3 +111,31 @@ const ChatWindowNavbar = ({ chat, onDeleteChat, onCall }) => {
 };
 
 export default ChatWindowNavbar;
+
+
+
+
+
+  // Function to format last seen time
+  const formatLastSeen = (timestamp) => {
+    if (!timestamp) return "Last seen recently"; 
+
+    const lastActiveDate = new Date(timestamp);
+    const now = new Date();
+
+    const diffInSeconds = Math.floor((now - lastActiveDate) / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInSeconds < 60) return "Last seen just now";
+    if (diffInMinutes < 60) return `Last seen ${diffInMinutes} minutes ago`;
+    if (diffInHours < 24 && lastActiveDate.getDate() === now.getDate()) {
+      return `Last seen today at ${lastActiveDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    }
+    if (diffInDays === 1) {
+      return `Last seen yesterday at ${lastActiveDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    }
+    
+    return `Last seen on ${lastActiveDate.toLocaleDateString([], { month: "short", day: "numeric" })} at ${lastActiveDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  };

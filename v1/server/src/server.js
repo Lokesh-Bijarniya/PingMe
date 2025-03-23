@@ -3,16 +3,13 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import session from "express-session";
 import helmet from "helmet";
 import http from "http";
 import passport from "passport";
 
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
-import callRoutes from "./routes/callRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
-import messageRoutes from "./routes/messageRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import communityRoutes from './routes/communityRoutes.js';
 import initializeSocket from "./socket/socketServer.js";
@@ -42,53 +39,51 @@ app.use(
   })
 );
 
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
-        styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
-        connectSrc: ["'self'", "https://ping-me-ruddy.vercel.app"],
-        frameSrc: ["'self'", "https://accounts.google.com"],
-      },
-    },
-  })
-);
+app.use(helmet());
 
-// ✅ Initialize Session & Passport
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === "production", sameSite: "lax" },
-  })
-);
+// ✅ Initialize Passport
 app.use(passport.initialize());
-app.use(passport.session());
 
 // ✅ Connect to MongoDB
 connectDB();
 
+
+app.use((req, res, next) => {
+  console.log(`📌 Incoming request: ${req.method} ${req.url} from ${req.ip}`);
+  next();
+});
+
+
 // ✅ Rate Limiter
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 3,
   message: "Too many requests, please try again later.",
 });
+
 if (process.env.NODE_ENV === "production") {
   app.use("/v1/api/", apiLimiter);
 }
 
+
 // ✅ Routes
 app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/chats", chatRoutes);
-app.use("/v1/api/messages", messageRoutes);
-app.use("/v1/api/calls", callRoutes);
 app.use("/v1/api/dashboard", dashboardRoutes);
 app.use("/v1/api/communities",communityRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Something went wrong." });
+  next();
+});
+
+// health check 
+app.get("/v1/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;

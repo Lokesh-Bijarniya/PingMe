@@ -34,7 +34,7 @@ const MessageInput = ({ onSend, onTyping }) => {
   // ✅ Handle typing status (Optimized with debounce)
   const handleTyping = (isTyping) => {
     if (onTyping) onTyping(isTyping);
-    SocketService.emit("TYPING", { chatId: selectedChat?.chatId, isTyping });
+    SocketService.chatSocket?.emit("TYPING", { chatId: selectedChat?.chatId, isTyping });
   };
 
   const debouncedHandleTyping = useDebounce(handleTyping, 500);

@@ -58,8 +58,6 @@ export const sendPasswordResetEmail = async (email, resetLink) => {
 
     console.log("📩 Sending password reset email to:", email);
 
-    console.log("📩 Sending password reset email to:", email);
-
     const emailContent = [
       `From: "PingMe Support" <${process.env.GOOGLE_EMAIL}>`,
       `To: ${email}`,

@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import { setupChatEvents } from "./chatEvents.js";
-import { setupCallEvents } from "./callEvents.js";
+import { setupCommunityEvents } from "./communityEvents.js";
 
 const initializeSocket = (server) => {
   const io = new Server(server, {
@@ -11,105 +11,77 @@ const initializeSocket = (server) => {
       methods: ["GET", "POST"],
       credentials: true,
     },
-    transports: ["websocket", "polling"], // Allow both transports
+    transports: ["websocket", "polling"],
     connectionStateRecovery: {
-      maxDisconnectionDuration: 30000, // 30 seconds
+      maxDisconnectionDuration: 30000,
     },
   });
 
   const connectedUsers = new Map();
 
-  // ✅ Strict authentication middleware
-  io.use(async (socket, next) => {
-    try {
-      const token =
-        socket.handshake.auth?.token ||
-        socket.handshake.headers?.authorization?.split(" ")[1];
+  // ✅ Authentication Middleware for ALL Namespaces
+  io.of("/chat").use(authMiddleware);
+  io.of("/community").use(authMiddleware);
+  io.use(authMiddleware); // Apply globally for default namespace too
 
-      console.log("🔐 Auth attempt from:", socket.id, "Token:", token ? "✅ Present" : "❌ Missing");
+  async function authMiddleware(socket, next) {
+    try {
+      const token = socket.handshake.auth?.token;
+      console.log(`🔐 Auth attempt for ${socket.nsp.name}:`, token ? "✅ Present" : "❌ Missing");
 
       if (!token) {
         console.error("🚫 No token - disconnecting socket:", socket.id);
-        socket.disconnect(true);
         return next(new Error("Authentication required"));
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).lean();
-
       if (!user) {
-        console.error("🚫 Invalid user - disconnecting socket:", socket.id);
-        socket.disconnect(true);
+        console.error("🚫 User not found for ID:", decoded.id);
         return next(new Error("User not found"));
       }
 
-      // ✅ Store user in socket
-      socket.user = {
-        id: decoded.id.toString(),
-        name: user.name,
-        avatar: user.avatar,
-      };
-
-      console.log("✅ Auth success for:", socket.user.id);
+      socket.user = { id: user._id.toString(), name: user.name, avatar: user.avatar };
+      console.log("✅ Auth success:", socket.user.id);
       next();
     } catch (error) {
       console.error("🔴 Auth failure:", error.message);
-      socket.disconnect(true);
       next(new Error("Authentication failed"));
     }
-  });
+  }
 
-  // ✅ Manage connected users
+  // ✅ Track Connected Users
   io.use((socket, next) => {
-    const userId = socket.user?.id.toString();
+    const userId = socket.user?.id;
     if (!userId) return next(new Error("Invalid user ID"));
 
-    // ✅ Ensure connectedUsers stores an array of socket IDs
-    if (!connectedUsers.has(userId)) {
-      connectedUsers.set(userId, new Set());
-    }
-
-    // ✅ Avoid duplicate socket IDs
+    if (!connectedUsers.has(userId)) connectedUsers.set(userId, new Set());
     connectedUsers.get(userId).add(socket.id);
 
-    console.log("➕ Stored Socket ID:", {
-      userId,
-      socketId: socket.id,
-      storedAs: Array.from(connectedUsers.get(userId)), // Log stored sockets
-    });
-
+    console.log("➕ Stored Socket ID:", { userId, socketId: socket.id });
     next();
   });
 
-  // Configure events AFTER auth
+  // ✅ Now Setup Events (AFTER Auth)
   setupChatEvents(io, connectedUsers);
-  setupCallEvents(io, connectedUsers);
+  setupCommunityEvents(io, connectedUsers);
 
-  // 📌 Handle global disconnection
-  io.on("connection", (socket) => {
+  io.on("connection",async (socket) => {
     console.log("✅ User connected:", socket.user.id);
+    await User.findByIdAndUpdate(socket.user?.id, { lastActive: new Date(), isActive: true });
+    io.emit("ONLINE_STATUS", { onlineUsers: Array.from(connectedUsers.keys()) });
 
-    // Emit the full list of online users to everyone
-    const onlineUsers = Array.from(connectedUsers.keys());
-    io.emit("ONLINE_STATUS", { onlineUsers });
-
-    socket.on("disconnect", () => {
+    socket.on("disconnect",async () => {
       const userId = socket.user?.id;
-
       if (userId && connectedUsers.has(userId)) {
         const sockets = connectedUsers.get(userId);
         sockets.delete(socket.id);
-
-        if (sockets.size === 0) {
+        if (sockets.size === 0){ 
           connectedUsers.delete(userId);
+          await User.findByIdAndUpdate(userId, { lastActive: new Date(), isActive: false });
         }
 
-        console.log("🚫 User disconnected:", userId);
-        console.log("📌 Updated Connected Users Map:", JSON.stringify([...connectedUsers]));
-
-        // Emit updated online users list
-        const updatedOnlineUsers = Array.from(connectedUsers.keys());
-        io.emit("ONLINE_STATUS", { onlineUsers: updatedOnlineUsers });
+        io.emit("ONLINE_STATUS", { onlineUsers: Array.from(connectedUsers.keys()) });
       }
     });
   });

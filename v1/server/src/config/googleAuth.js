@@ -5,7 +5,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// ✅ Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -15,26 +14,26 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        let user = await User.findOne({ googleId: profile.id });
+        // Check if a user already exists with this email
+        let user = await User.findOne({ email: profile.emails[0].value });
 
         if (!user) {
+          // Create a new user if not found
           user = new User({
             name: profile.displayName,
             email: profile.emails[0].value,
-            googleId: profile.id,
+            googleId: profile.id, // Save Google ID
             avatar: profile.photos[0].value,
-            isVerified: true, // Automatically mark as verified
+            isVerified: true, // Mark as verified
           });
-          await user.save();
-        }else{
-          // Ensure existing Google users are marked as verified
-          if (!user.isVerified) {
-            user.isVerified = true;
-            await user.save();
-          }
+        } else if (!user.googleId) {
+          // If user exists but doesn't have Google ID, link the account
+          user.googleId = profile.id;
+          user.isVerified = true; // Ensure verified status
         }
 
-        return done(null, user); // ✅ Only return `user`, NOT `{ user, token }`
+        await user.save();
+        return done(null, user);
       } catch (error) {
         return done(error, null);
       }
@@ -42,13 +41,4 @@ passport.use(
   )
 );
 
-// ✅ Serialize & Deserialize User
-passport.serializeUser((user, done) => done(null, user._id));
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
+

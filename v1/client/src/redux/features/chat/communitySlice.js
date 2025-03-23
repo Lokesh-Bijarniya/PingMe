@@ -51,8 +51,7 @@ export const joinCommunity = createAsyncThunk(
   async (communityId, { getState, rejectWithValue }) => {
     try {
       await api.post(`/communities/${communityId}/join`);
-      console.log("join-community", communityId, getState().auth.user._id);
-      // Use getState from thunkAPI instead of imported one
+      // console.log("join-community", communityId, getState().auth.user._id);
       return { communityId, userId: getState().auth.user._id };
     } catch (err) {
       return rejectWithValue(err.response.data);

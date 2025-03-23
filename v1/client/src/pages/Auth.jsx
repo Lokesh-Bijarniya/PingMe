@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import apiClient from '../api/apiClient';
-import Cookies from "js-cookie";
 import { motion } from "framer-motion";
 import logoImg from "/LogoAuth.png";
 
@@ -40,30 +39,36 @@ const AuthPage = () => {
   });
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
 
   useEffect(() => {
-    const tokenFromCookie = Cookies.get("token");
+    // Extract token and refreshToken from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+  
+    if (token) {
 
-    if (!tokenFromCookie) {
-      console.warn("No token found in cookies.");
-      return;
+      // Set tokens in local storage
+      localStorage.setItem("authToken", token);
+  
+      // Set the token in API client headers
+      apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  
+      // Remove tokens from URL for cleaner UI
+      window.history.replaceState(null, null, window.location.pathname);
+  
+      // Fetch user data
+      dispatch(getMe())
+        .then(() => navigate("/"))
+        .catch((error) => {
+          console.error("Auth failed:", error);
+          dispatch(logoutUser());
+        });
     }
-
-    localStorage.setItem("authToken", tokenFromCookie);
-    apiClient.defaults.headers.common["Authorization"] = `Bearer ${tokenFromCookie}`;
-
-    dispatch(getMe())
-      .then(() => {
-        navigate("/");
-      })
-      .catch((error) => {
-        console.error("Auth failed:", error);
-        Cookies.remove("token");
-        Cookies.remove("refreshToken");
-        dispatch(logoutUser());
-      });
   }, [dispatch, navigate]);
+  
+
+
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -82,7 +87,7 @@ const AuthPage = () => {
       const response = await dispatch(loginUser({ ...formData, rememberMe }));
       if (response) {
         toast.success("Logged in successfully!");
-        navigate("/dashboard");
+        navigate("/");
       } else {
         toast.error("Login failed! Check your credentials.");
       }
@@ -90,7 +95,7 @@ const AuthPage = () => {
   };
 
   const handleGoogleAuth = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`;
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/v1/api/auth/google`;
   };
 
   const togglePasswordVisibility = () => {
@@ -132,7 +137,7 @@ const AuthPage = () => {
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-200">
         <Loader2 className="animate-spin w-8 h-8 text-blue-500" />

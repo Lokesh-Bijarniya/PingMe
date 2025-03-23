@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 
 const verifyToken = async (req, res, next) => {
-  console.log("verify-token-hit");
+  // console.log("verify-token-hit");
   let token;
 
   // Extract token from cookies

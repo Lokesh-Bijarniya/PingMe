@@ -16,29 +16,3 @@ oauth2Client.setCredentials({
 });
 
 export const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-// export const testGmailAuth = async () => {
-//   try {
-//     const { tokens } = await oauth2Client.refreshToken(process.env.GOOGLE_REFRESH_TOKEN);
-//     oauth2Client.setCredentials(tokens);
-
-//     const { data } = await gmail.users.getProfile({ userId: 'me' });
-//     // console.log("✅ Gmail API authenticated successfully:", data.emailAddress);
-//   } catch (error) {
-//     console.error("❌ Gmail API authentication failed:", error.message);
-//     console.error("Error details:", error.response?.data);
-//   }
-// };
-
-// const testRefreshToken = async () => {
-//   try {
-//     const { tokens } = await oauth2Client.refreshToken(process.env.GOOGLE_REFRESH_TOKEN);
-//     // console.log("✅ Refresh token is valid:", tokens);
-//   } catch (error) {
-//     console.error("❌ Refresh token is invalid:", error.message);
-//   }
-// };
-// testRefreshToken();
-
-// // Call this function at server startup
-// testGmailAuth();

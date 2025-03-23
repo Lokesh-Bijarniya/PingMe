@@ -4,7 +4,6 @@ import apiClient from "../../../api/apiClient";
 // Initial State
 const initialState = {
   stats: [], // Dashboard statistics
-  recentChats: [], // Recent chats
   loading: false,
   error: null,
 };
@@ -29,20 +28,6 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || "Failed to load dashboard stats";
       })
-
-      // Fetch Recent Chats
-      .addCase(fetchRecentChats.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchRecentChats.fulfilled, (state, action) => {
-        state.loading = false;
-        state.recentChats = action.payload;
-      })
-      .addCase(fetchRecentChats.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "Failed to load recent chats";
-      });
   },
 });
 
@@ -59,19 +44,6 @@ export const fetchDashboardStats = createAsyncThunk(
       return response; // Return parsed stats data
     } catch (error) {
       throw new Error("Failed to fetch dashboard stats");
-    }
-  }
-);
-
-// ✅ Fetch Recent Chats
-export const fetchRecentChats = createAsyncThunk(
-  "dashboard/fetchRecentChats",
-  async () => {
-    try {
-      const response = await apiClient.get("/dashboard/recent-chats");
-      return response; // Return parsed recent chats data
-    } catch (error) {
-      throw new Error("Failed to fetch recent chats");
     }
   }
 );

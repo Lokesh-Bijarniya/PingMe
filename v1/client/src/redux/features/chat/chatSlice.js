@@ -33,7 +33,7 @@ export const fetchMessages = createAsyncThunk(
   "chat/fetchMessages",
   async (chatId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/messages/${chatId}`);
+      const response = await api.get(`/chats/${chatId}`);
 
       console.log("📩 Messages Response:", response);
 
@@ -103,19 +103,7 @@ export const searchUsers = createAsyncThunk(
   }
 );
 
-// ✅ Update message status (mark as read)
-// export const updateMessageStatus = createAsyncThunk(
-//   "chat/updateMessageStatus",
-//   async ({ messageId, chatId, status }, { rejectWithValue }) => {
-//     try {
-//       await api.put(`/messages/status/${messageId}`, { status });
 
-//       return { chatId, messageId, status };
-//     } catch (err) {
-//       return rejectWithValue(err.response?.data || "Failed to update message status");
-//     }
-//   }
-// );
 
 // ✅ Slice Definition
 const chatSlice = createSlice({
@@ -178,20 +166,21 @@ const chatSlice = createSlice({
 
     // ✅ Update user online status
     updateOnlineStatus: (state, action) => {
-      const { onlineUsers } = action.payload;
-
-      if (!onlineUsers || !Array.isArray(onlineUsers)) {
-        console.error("❌ Invalid online users data received:", onlineUsers);
+      const { userId, isOnline } = action.payload;
+    
+      if (!userId) {
+        console.error("❌ Invalid userId in ONLINE_STATUS event:", action.payload);
         return;
       }
-
-      state.onlineStatus = {}; // ✅ Reset online status
-      onlineUsers.forEach((userId) => {
-        if (userId) {
-          state.onlineStatus[userId] = true; // ✅ Store each online user
-        }
-      });
+    
+      // ✅ Update the online status for a single user
+      if (isOnline) {
+        state.onlineStatus[userId] = true;
+      } else {
+        delete state.onlineStatus[userId]; // Remove user if offline
+      }
     },
+    
 
     // ✅ Set selected chat
     setSelectedChat: (state, action) => {
@@ -211,7 +200,7 @@ const chatSlice = createSlice({
       .addCase(fetchChats.fulfilled, (state, action) => {
         state.chats = action.payload;
         state.unreadCounts = action.payload.reduce((acc, chat) => {
-          acc[chat.chatId] = chat.unreadCount;
+          acc[chat.chatId] = chat.unreadCount || state.unreadCounts[chat.chatId] || 0;
           return acc;
         }, {});
       })

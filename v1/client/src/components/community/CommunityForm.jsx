@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { createCommunity } from '../redux/features/chat/communitySlice';
+import { createCommunity } from '../../redux/features/chat/communitySlice';
 
 const CreateCommunityForm = ({ onClose }) => {
   const dispatch = useDispatch();

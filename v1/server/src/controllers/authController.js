@@ -4,50 +4,6 @@ import cloudinary from "../config/cloudinary.js"; // Assuming you're using Cloud
 import validator from "validator"; 
 import { sendVerificationEmail, sendPasswordResetEmail } from "../services/verificationService.js"; 
 
-// ✅ Update Profile
-
-export const updateProfile = async (req, res) => {
-  try {
-    let avatarUrl = req.body.avatar;
-    
-    // ✅ Add proper error handling for file upload
-    if (req.file) {
-      try {
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: "pingme/profiles",
-          resource_type: "auto",
-        });
-        avatarUrl = result.secure_url;
-
-        // Optional: Delete old avatar from Cloudinary if necessary
-        if (req.body.oldAvatar) {
-          await cloudinary.uploader.destroy(req.body.oldAvatar); // oldAvatar is the public ID of the previous avatar
-        }
-      } catch (uploadError) {
-        console.error("Cloudinary upload failed:", uploadError);
-        return res.status(500).json({ message: "Avatar upload failed" });
-      }
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      { name: req.body.name, email: req.body.email, avatar: avatarUrl },
-      { new: true, runValidators: true } // ✅ Add validation
-    ).select("-password -refreshToken");
-
-
-
-    res.json({ 
-      user: updatedUser,
-      message: "Profile updated successfully" 
-    });
-  } catch (error) {
-    console.error("Profile update error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
 // ✅ User Registration
 export const registerUser = async (req, res) => {
   const { name, email, password, rememberMe } = req.body;
@@ -170,7 +126,7 @@ export const loginUser = async (req, res) => {
 
 // Get Logged-in User Info
 export const getMe = async (req, res) => {
-  console.log("get-me-hit")
+  // console.log("get-me-hit")
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -182,7 +138,6 @@ export const getMe = async (req, res) => {
 };
 
 // Refresh Token
-// Backend refreshToken controller
 export const refreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
@@ -217,7 +172,6 @@ export const refreshToken = async (req, res) => {
 
 
 // Forgot Password
-// controllers/authController.js
 export const passwordResetRequest = async (req, res) => {
   const { email } = req.body;
 
@@ -308,13 +262,58 @@ export const changePassword = async (req, res) => {
 export const deleteAccount = async (req, res) => {
   try {
     await User.findByIdAndDelete(req.user.id);
-    res.clearCookie("token");
+    res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     res.json({ message: "Account deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+// ✅ Update Profile
+
+export const updateProfile = async (req, res) => {
+  try {
+    let avatarUrl = req.body.avatar;
+    
+    // ✅ Add proper error handling for file upload
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: "pingme/profiles",
+          resource_type: "auto",
+        });
+        avatarUrl = result.secure_url;
+
+        // Optional: Delete old avatar from Cloudinary if necessary
+        if (req.body.oldAvatar) {
+          await cloudinary.uploader.destroy(req.body.oldAvatar); // oldAvatar is the public ID of the previous avatar
+        }
+      } catch (uploadError) {
+        console.error("Cloudinary upload failed:", uploadError);
+        return res.status(500).json({ message: "Avatar upload failed" });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { name: req.body.name, email: req.body.email, avatar: avatarUrl },
+      { new: true, runValidators: true } // ✅ Add validation
+    ).select("-password -refreshToken");
+
+
+
+    res.json({ 
+      user: updatedUser,
+      message: "Profile updated successfully" 
+    });
+  } catch (error) {
+    console.error("Profile update error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 // Logout
 export const logout = async (req, res) => {
@@ -333,7 +332,7 @@ export const logout = async (req, res) => {
     const user = await User.findOne({ refreshToken });
     if (!user) {
       // Clear cookies if no user is found with the refresh token
-      res.clearCookie("token");
+      res.clearCookie("accessToken");
       res.clearCookie("refreshToken");
       return res.json({ message: "Logged out successfully" });
     }
@@ -343,7 +342,7 @@ export const logout = async (req, res) => {
     await user.save();
 
     // ✅ Clear cookies
-    res.clearCookie("token");
+    res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
 
     res.json({ message: "Logged out successfully" });
@@ -355,7 +354,6 @@ export const logout = async (req, res) => {
 
 
 // Search users by email or name
-// controllers/userController.js
 export const searchUsers = async (req, res) => {
   try {
     const { query } = req.query; // Query can be email or name
@@ -421,7 +419,7 @@ export const resendVerificationEmail = async (req, res) => {
 
 
 export const verifyEmail = async (req, res) => {
-  console.log("verifyEmail hit")
+  // console.log("verifyEmail hit")
   try {
     const { token } = req.query;
     if (!token) {

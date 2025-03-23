@@ -25,3 +25,52 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+/* Light mode (default) */
+body {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* Dark mode */
+.dark body {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+
+
+/* Dark Mode Fixes */
+.dark {
+  /* Background Adjustments */
+  --bg-white: #1f2937;  /* Equivalent to bg-gray-800 */
+  --bg-gray-50: #374151; /* Equivalent to bg-gray-700 */
+  --bg-gray-100: #374151; /* Equivalent to bg-gray-700 */
+  --bg-gray-300: #0d1d2e; /* Equivalent to bg-gray-700 */
+  --hover-bg-gray-200: #010a1a; /* Equivalent to bg-gray-600 */
+
+  /* Text Adjustments */
+  --text-gray-700: #e5e7eb; /* Equivalent to text-gray-200 */
+  --text-gray-800: #bec3ca; /* Equivalent to text-gray-400 */
+  --text-gray-900: #e5e7eb; /* Equivalent to text-gray-200 */
+  --text-blue-500: #43b581; /* Equivalent to text-green-500 */
+
+  /* Border Adjustments */
+  --border-gray-100: #374151; /* Equivalent to border-gray-700 */
+  --border-gray-300: #1a2433; /* Equivalent to border-gray-800 */
+}
+
+/* Apply Dark Mode Variables */
+.dark .bg-white { background-color: var(--bg-white) !important; }
+.dark .bg-gray-50 { background-color: var(--bg-gray-50) !important; }
+.dark .bg-gray-100 { background-color: var(--bg-gray-100) !important; }
+.dark .bg-gray-300 { background-color: var(--bg-gray-300) !important; }
+.dark .hover\:bg-gray-200:hover { background-color: var(--hover-bg-gray-200) !important; }
+
+.dark .text-gray-700 { color: var(--text-gray-700) !important; }
+.dark .text-gray-800 { color: var(--text-gray-800) !important; }
+.dark .text-gray-900 { color: var(--text-gray-900) !important; }
+.dark .text-blue-500 { color: var(--text-blue-500) !important; }
+
+.dark .border-gray-100 { border-color: var(--border-gray-100) !important; }
+.dark .border-gray-300 { border-color: var(--border-gray-300) !important; }
+.dark .border { border-color: var(--border-gray-300) !important; }

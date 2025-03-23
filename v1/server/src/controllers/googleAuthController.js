@@ -1,6 +1,4 @@
 import dotenv from "dotenv";
-import jwt from "jsonwebtoken";
-import User from "../models/userModel.js"; // Import your User model
 
 dotenv.config();
 
@@ -21,15 +19,15 @@ export const googleLogin = async (req, res) => {
     await user.save();
 
     // Set cookies
-    res.cookie("token", token, { 
-      httpOnly: false,
+    res.cookie("accessToken", token, { 
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production" || false,
       sameSite: "Lax",
       path: "/",
     });
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production" || false,
       sameSite: "Lax",
       path: "/",
@@ -37,7 +35,10 @@ export const googleLogin = async (req, res) => {
     });
 
     // Redirect to frontend success page
-    res.redirect(`${process.env.CLIENT_URL}/auth/success`);
+    res.redirect(
+      `${process.env.CLIENT_URL}/auth?token=${token}`
+    );
+    
   } catch (error) {
     console.error("Google login error:", error);
     res.clearCookie("token");

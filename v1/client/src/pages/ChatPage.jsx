@@ -10,16 +10,20 @@ const ChatPage = () => {
   const dispatch = useDispatch();
   const selectedChat = useSelector((state) => state.chat.selectedChat);
 
-  // Listen for chat deletion events via WebSocket
   useEffect(() => {
     const handleChatDeleted = (data) => {
       const { chatId } = data;
-      dispatch(deleteChat(chatId)); // Dispatch an action to remove the chat from state
+      dispatch(deleteChat(chatId)); // Remove chat from Redux state
     };
 
-    SocketService.on("CHAT_DELETED", handleChatDeleted);
-    return () => SocketService.off("CHAT_DELETED", handleChatDeleted);
-  }, [dispatch]);
+    // Attach event listener
+    SocketService.chatSocket?.on("CHAT_DELETED", handleChatDeleted);
+
+    // Cleanup function (removes listener on unmount)
+    return () => {
+      SocketService.chatSocket?.off("CHAT_DELETED", handleChatDeleted);
+    };
+  }, [dispatch]); // Depend on dispatch only
 
   return (
     <div className="flex h-screen">

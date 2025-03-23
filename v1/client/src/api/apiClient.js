@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import { logoutUser, authSuccess } from "../redux/features/auth/authSlice";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/v1/api",
+  baseURL: `${import.meta.env.VITE_API_BASE_URL}/v1/api`,
   withCredentials: true, // ✅ Ensures cookies (refresh token) are sent
   timeout: 5000,
 });

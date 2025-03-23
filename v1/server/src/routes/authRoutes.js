@@ -39,7 +39,7 @@ router.get(
 );
 router.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
+  passport.authenticate("google", {  session: false, failureRedirect: "/login" }),
   googleLogin
 );
 
@@ -53,12 +53,6 @@ router.put(
 router.post("/change-password", verifyToken, changePassword);
 router.delete("/delete-account", verifyToken, deleteAccount);
 router.post("/logout", verifyToken, logout);
-// router.post("/add-friend", verifyToken, addFriend);
-// router.get("/friends/:userId", verifyToken, getFriends);
-// router.delete("/remove-friend", authMiddleware, removeFriend);
-// router.get("/friend-requests", authMiddleware, getFriendRequests);
-// router.post("/accept-request", authMiddleware, acceptRequest);
-// router.delete("/reject-request", authMiddleware, rejectRequest);
 
 // Search users by email or name
 router.get("/search", verifyToken, searchUsers);

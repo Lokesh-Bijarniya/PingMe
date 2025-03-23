@@ -6,12 +6,13 @@ import {
   setCurrentCommunity,
   joinCommunity,
   searchCommunities,
-} from "../redux/features/chat/communitySlice";
+} from "../../redux/features/chat/communitySlice";
 import { BadgePlus } from "lucide-react";
-import SocketService from "../services/socket";
+import SocketService from "../../services/socket";
 import { Users } from "lucide-react";
 import { format, isYesterday, isToday } from "date-fns";
 import { toast } from "react-toastify";
+import communitySocket from '../../services/communitySocket';
 
 const CommunityList = ({ onSelectCommunity }) => {
   const dispatch = useDispatch();
@@ -63,7 +64,7 @@ const CommunityList = ({ onSelectCommunity }) => {
           onSelectCommunity(result.payload);
           setShowCreateModal(false);
           setFormData({ name: "", description: "" });
-          SocketService.emit("JOIN_COMMUNITY_CHAT", result.payload._id);
+          communitySocket.joinCommunityRoom(result.payload._id);
         }
       } catch (error) {
         toast.error("Error creating community. Please try again.");

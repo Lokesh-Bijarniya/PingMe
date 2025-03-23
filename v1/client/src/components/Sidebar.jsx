@@ -9,7 +9,6 @@ import logoImg from '/Logo.png';
 const Sidebar = () => {
   const location = useLocation();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   // Retrieve user details from Redux state
   const { user } = useSelector((state) => state.auth);

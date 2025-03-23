@@ -3,11 +3,13 @@ import Community from "../models/communityModel.js";
 import Chat from "../models/chatModel.js";
 import Message from "../models/messageModel.js";
 import User from "../models/userModel.js";
+import { createSystemMessage } from "../utils/messageHandler.js";
+
 
 // ✅ Create new community with linked chat
 export const createCommunity = async (req, res) => {
   try {
-    console.log(req.body);
+    // console.log(req.body);
 
       // Validate required fields
     if (!req.body.name) {
@@ -45,29 +47,6 @@ export const createCommunity = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-// ✅ Get community details
-export const getCommunity = async (req, res) => {
-  try {
-    const community = await Community.findById(req.params.id)
-      .populate("members", "name email avatar online")
-      .populate("admins", "name email avatar")
-      .populate({
-        path: "chat",
-        populate: {
-          path: "lastMessage",
-          populate: { path: "sender", select: "name avatar" }
-        }
-      });
-
-    if (!community) return res.status(404).json({ message: "Community not found" });
-    
-    res.json(community);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 
 
 // Get all communities
@@ -126,8 +105,6 @@ export const getCommunities = async (req, res) => {
 };
 
 
-
-
 // Get community members
 export const getCommunityMembers = async (req, res) => {
   try {
@@ -146,29 +123,13 @@ export const getCommunityMessages = async (req, res) => {
     const { communityId } = req.params;
     const userId = req.user.id;
 
-    console.log(communityId);
+    const community = await Community.findById(communityId).populate('chat').populate('members');
+    if (!community) return res.status(404).json({ message: "Community not found" });
 
-    // 1. Find the community and its associated chat
-    const community = await Community.findById(communityId)
-      .populate('chat')
-      .populate('members');
-
-      console.log(community);
-
-    if (!community) {
-      return res.status(404).json({ message: "Community not found" });
-    }
-
-    // 2. Verify user is community member
-    const isMember = community.members.some(member => 
-      member._id.toString() === userId.toString()
-    );
-    
-    if (!isMember) {
+    if (!community.members.some(member => member._id.toString() === userId.toString())) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // 3. Get messages for the community's chat
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
@@ -177,15 +138,12 @@ export const getCommunityMessages = async (req, res) => {
       .sort({ timestamp: 1 })
       .skip(skip)
       .limit(limit)
-      .populate('sender', 'name avatar')
-      .lean();
+      .populate('sender', 'name avatar');
 
     res.json({
       messages,
       page,
-      totalPages: Math.ceil(
-        await Message.countDocuments({ chat: community.chat._id }) / limit
-      )
+      totalPages: Math.ceil(await Message.countDocuments({ chat: community.chat._id }) / limit)
     });
 
   } catch (error) {
@@ -193,33 +151,6 @@ export const getCommunityMessages = async (req, res) => {
   }
 };
 
-
-
-// ✅ Update community (Admin only)
-export const updateCommunity = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description } = req.body;
-    const userId = req.user.id;
-
-    const community = await Community.findById(id);
-    if (!community.admins.includes(userId)) {
-      return res.status(403).json({ message: "Admin privileges required" });
-    }
-
-    const updatedCommunity = await Community.findByIdAndUpdate(
-      id,
-      { name, description },
-      { new: true }
-    );
-
-    await createSystemMessage(id, "Community details updated");
-
-    res.json(updatedCommunity);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
 // ✅ Delete community (Admin only)
 export const deleteCommunity = async (req, res) => {
@@ -232,10 +163,16 @@ export const deleteCommunity = async (req, res) => {
       return res.status(403).json({ message: "Admin privileges required" });
     }
 
+
     // Delete related data
     await Chat.findByIdAndDelete(community.chat);
     await Message.deleteMany({ chat: community.chat });
     await Community.findByIdAndDelete(id);
+
+
+    // Notify community members
+    const io = req.app.locals.io;
+    if (io) io.to(chatId).emit("CHAT_DELETED", { chatId });
 
     res.json({ message: "Community deleted successfully" });
   } catch (error) {
@@ -244,16 +181,14 @@ export const deleteCommunity = async (req, res) => {
 };
 
 
-
-
 export const leaveCommunity = async (req, res) => {
   try {
     const community = await Community.findById(req.params.id);
-    
     if (!community.members.includes(req.user.id)) {
       return res.status(400).json({ message: "Not a member" });
     }
 
+    // Remove user from community members
     community.members = community.members.filter(m => !m.equals(req.user.id));
     await community.save();
 
@@ -262,80 +197,17 @@ export const leaveCommunity = async (req, res) => {
       $pull: { participants: req.user.id }
     });
 
+    // Notify other members via WebSocket
+    const io = req.app.locals.io;  // Access WebSocket instance
+    if (io) io.of("/community").to(req.params.id).emit("MEMBER_LEFT", { userId: req.user.id, communityId: req.params.id });
+
     res.json({ message: "Successfully left community" });
-    
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// ✅ Add member to community (Admin only)
-export const addMember = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { email } = req.body;
-    const requesterId = req.user.id;
-
-    const community = await Community.findById(id);
-    const userToAdd = await User.findOne({ email });
-
-    if (!community.admins.includes(requesterId)) {
-      return res.status(403).json({ message: "Admin privileges required" });
-    }
-    if (!userToAdd) return res.status(404).json({ message: "User not found" });
-    if (community.members.includes(userToAdd._id)) {
-      return res.status(400).json({ message: "User already in community" });
-    }
-
-    community.members.push(userToAdd._id);
-    await community.save();
-
-    // Add to community chat
-    await Chat.findByIdAndUpdate(
-      community.chat,
-      { $addToSet: { participants: userToAdd._id } }
-    );
-
-    // Create system message
-    await createSystemMessage(id, `${userToAdd.name} joined the community`);
-
-    res.json({ message: "Member added successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// ✅ Remove member from community (Admin only)
-export const removeMember = async (req, res) => {
-  try {
-    const { id, userId } = req.params;
-    const requesterId = req.user.id;
-
-    const community = await Community.findById(id);
-    const userToRemove = await User.findById(userId);
-
-    if (!community.admins.includes(requesterId)) {
-      return res.status(403).json({ message: "Admin privileges required" });
-    }
-    if (!userToRemove) return res.status(404).json({ message: "User not found" });
-
-    community.members = community.members.filter(m => m.toString() !== userId);
-    await community.save();
-
-    // Remove from community chat
-    await Chat.findByIdAndUpdate(
-      community.chat,
-      { $pull: { participants: userId } }
-    );
-
-    // Create system message
-    await createSystemMessage(id, `${userToRemove.name} left the community`);
-
-    res.json({ message: "Member removed successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
 // ✅ Join community (Public join)
 export const joinCommunity = async (req, res) => {
@@ -366,31 +238,5 @@ export const joinCommunity = async (req, res) => {
     res.json({message: "Joined community successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
-  }
-};
-
-
-
-// ✅ Create system message in community chat
-const createSystemMessage = async (communityId, content) => {
-  try {
-    const community = await Community.findById(communityId).populate("chat");
-    if (!community) return;
-
-    const message = new Message({
-      chat: community.chat._id,
-      content,
-      isSystemMessage: true,
-      timestamp: new Date()
-    });
-
-    await message.save();
-
-    community.chat.lastMessage = message._id;
-    await community.chat.save();
-
-    return message;
-  } catch (error) {
-    console.error("Error creating system message:", error);
   }
 };

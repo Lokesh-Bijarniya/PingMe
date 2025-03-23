@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import CommunityList from "../components/CommunityList";
-import CommunityChat from "../components/CommunityChat";
-import CreateCommunityForm from "../components/CommunityForm"; 
+import CommunityList from "../components/community/CommunityList";
+import CommunityChat from "../components/community/CommunityChat";
+import CreateCommunityForm from "../components/community/CommunityForm"; 
 import { motion } from "framer-motion"
 
 const Community = () => {

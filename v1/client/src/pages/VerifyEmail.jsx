@@ -23,8 +23,8 @@ const VerifyEmail = () => {
 
       try {
         const response = await dispatch(verifyEmail(token));
-        localStorage.setItem("user", JSON.stringify(response.user));
-        localStorage.setItem("authToken", response.token);
+        sessionStorage.setItem("user", JSON.stringify(response.user));
+        sessionStorage.setItem("authToken", response.token);
 
         setStatus("success");
         setMessage("Email verified successfully! Redirecting...");
@@ -32,7 +32,7 @@ const VerifyEmail = () => {
         dispatch(authSuccess({ 
           user: response.user, 
           token: response.token, 
-          rememberMe: true 
+          rememberMe: false 
         }));
         setTimeout(() => navigate("/"), 2000); // Redirect after 2s
       } catch (error) {

@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String, unique: true, sparse: true },
   avatar: { type: String, default: "https://cdn-icons-png.flaticon.com/128/1144/1144760.png" },
   refreshToken: { type: String, select: false }, // Store refresh token
-  online: { type: Boolean, default: false },
 
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },
@@ -17,6 +16,7 @@ const userSchema = new mongoose.Schema({
   resetToken: { type: String },
   resetTokenExpires: { type: Date },
   
+  isActive : { type: Boolean, default: false},
   lastActive: Date,
 }, { timestamps: true });
 

@@ -22,7 +22,7 @@ const ChatWindow = () => {
 
 
 
-  console.log("chat-wind-msg",messages);
+  // console.log("chat-wind-msg",messages);
 
   // ✅ Load messages when selectedChat changes
   useEffect(() => {
@@ -68,7 +68,7 @@ const ChatWindow = () => {
         const sendChunk = async (chunk, isLastChunk) => {
           const base64Chunk = await readFileAsBase64(chunk);
           return new Promise((resolve) => {
-            SocketService.emit("UPLOAD_FILE", {
+            SocketService.chatSocket?.emit("UPLOAD_FILE", {
               chatId: selectedChat.chatId,
               fileName: file.name,
               fileType: file.type,
@@ -91,7 +91,7 @@ const ChatWindow = () => {
 
         console.log("✅ File upload complete!");
       } else {
-        SocketService.emit("SEND_MESSAGE", {
+        SocketService.chatSocket?.emit("SEND_MESSAGE", {
           chatId: selectedChat.chatId,
           content: messageText,
           senderId: currentUser?._id || currentUser?.id,
@@ -119,7 +119,7 @@ const ChatWindow = () => {
   const handleDeleteChat = async (chatId) => {
     if (window.confirm("Are you sure you want to delete this chat?")) {
       try {
-        await SocketService.emit("DELETE_CHAT", { chatId });
+        await SocketService.chatSocket?.emit("DELETE_CHAT", { chatId });
         await dispatch(deleteChat(chatId)).unwrap();
 
        // In handleDeleteChat, update state first
@@ -191,6 +191,7 @@ const ChatWindow = () => {
                         )
                       ) : (
                         <p>{msg.content}</p>
+                        
                       )}
 
                       {/* ✅ Show message timestamp */}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, Users, FileText, PhoneCall, Bell, Mail, MessageSquare } from "lucide-react";
-import ChatSuggestions from "../components/chatSuggestion";
+import ChatSuggestions from "../components/dashboard/chatSuggestion";
 import { fetchDashboardStats } from "../redux/features/dashboard/dashboardSlice";
 
 const DashboardPage = () => {

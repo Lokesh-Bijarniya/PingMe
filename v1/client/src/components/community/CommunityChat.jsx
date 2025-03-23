@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { Send, Smile, LogOut, UsersRound, Trash2 } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { format, isToday, isYesterday } from "date-fns";
-import SocketService from "../services/socket";
+import communitySocket from "../../services/communitySocket";
 import {
   fetchCommunityMembers,
   fetchCommunityMessages,
   leaveCommunity,
-} from "../redux/features/chat/communitySlice";
+  deleteCommunity
+} from "../../redux/features/chat/communitySlice";
 
 const CommunityChat = ({ community }) => {
   const dispatch = useDispatch();
@@ -24,78 +25,56 @@ const CommunityChat = ({ community }) => {
     state.community.communities[community?._id]?.messages || []
   );
 
-  console.log("community",community);
+  // console.log("new-msg",messages);
 
-  // WebSocket and data synchronization
   useEffect(() => {
     if (!community?._id) return;
 
-    const handleNewMessage = (data) => {
-      if (data.communityId === community._id) {
-        // Automatic scroll will be handled by the messages effect
-      }
-    };
+    // ✅ Join community room
+     communitySocket?.joinCommunityRoom(community._id);
 
-    // Join community room and setup listeners
-    SocketService.emit("JOIN_COMMUNITY_ROOM", community._id);
-    SocketService.on("NEW_COMMUNITY_MESSAGE", handleNewMessage);
-
-    // Initial data fetch
+    // ✅ Fetch initial data
     dispatch(fetchCommunityMembers(community._id));
     dispatch(fetchCommunityMessages(community._id));
 
     return () => {
-      SocketService.off("NEW_COMMUNITY_MESSAGE", handleNewMessage);
-      SocketService.emit("LEAVE_COMMUNITY_ROOM", community._id);
+      // ✅ Leave room when unmounting
+      communitySocket.leaveCommunityRoom(community._id);
     };
   }, [community?._id, dispatch]);
 
-  // Message synchronization and scroll management
   useEffect(() => {
-    // Smooth scroll to bottom on new messages
+    // ✅ Smooth scroll to bottom on new messages
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    
-    // Periodic sync to catch any missed messages
-    const syncInterval = setInterval(() => {
-      dispatch(fetchCommunityMessages(community._id));
-    }, 30000);
-
-    return () => clearInterval(syncInterval);
-  }, [messages.length, community?._id, dispatch]);
+  }, [messages.length]);
 
   const handleSendMessage = () => {
-    if (message.trim()) {
-      SocketService.emit("SEND_MESSAGE", {
-        chatId: community.chat._id,
-        content: message,
-        sender: user._id,
-        chatType: "community"
-      });
-      setMessage("");
-    }
+    if (!message.trim()) return;
+
+    communitySocket.sendMessage({
+      communityId: community._id,
+      content: message,
+      senderId: user._id,
+      chatType: "community"
+    });
+
+    setMessage("");
   };
 
   const handleLeaveCommunity = () => {
     if (window.confirm("Are you sure you want to leave this community?")) {
       dispatch(leaveCommunity(community._id));
-      SocketService.emit("LEAVE_COMMUNITY", {
-        communityId: community._id,
-        userId: user._id
-      });
       navigate('/communities');
     }
   };
 
-
-   // Add delete community handler
-   const handleDeleteCommunity = () => {
+  const handleDeleteCommunity = () => {
     if (window.confirm("Are you sure you want to delete this community? This action cannot be undone!")) {
       dispatch(deleteCommunity(community._id));
       navigate('/communities');
     }
   };
 
-  // Message rendering helpers
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     if (isToday(date)) return format(date, "h:mm a");
@@ -106,7 +85,7 @@ const CommunityChat = ({ community }) => {
   return (
     <div className="flex-1 flex flex-col h-full bg-white rounded-lg shadow-sm">
       {/* Chat Header */}
-      <div className="flex justify-between border-b border-b-gray-200 p-4 bg-gray-100 rounded-t-lg">
+      <div className="flex justify-between border-b p-4 bg-gray-100 rounded-t-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
             <UsersRound className="text-blue-600 text-lg" />
@@ -116,36 +95,26 @@ const CommunityChat = ({ community }) => {
             <p className="text-sm text-gray-500">{members.length} members</p>
           </div>
         </div>
-        
 
-        {community?.admin[0] === user._id ? (
-      <button
-        className="flex items-center gap-2 px-4 text-red-500 bg-gray-200 hover:bg-gray-300 rounded-full"
-        onClick={handleDeleteCommunity}
-      >
-        <Trash2 className="w-4 h-4" />
-        Delete
-      </button>
-    ) : (
-      <button
-        className="flex items-center gap-2 px-4 text-red-500 bg-gray-200 hover:bg-gray-300 rounded-full"
-        onClick={handleLeaveCommunity}
-      >
-        <LogOut className="w-4 h-4" />
-        Exit
-      </button>
-    )}
+        {community?.admin?.[0] === user._id ? (
+          <button className="flex items-center gap-2 px-4 text-red-500 bg-gray-200 hover:bg-gray-300 rounded-full"
+            onClick={handleDeleteCommunity}>
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        ) : (
+          <button className="flex items-center gap-2 px-4 text-red-500 bg-gray-200 hover:bg-gray-300 rounded-full"
+            onClick={handleLeaveCommunity}>
+            <LogOut className="w-4 h-4" />
+            Exit
+          </button>
+        )}
       </div>
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         {messages.map((msg) => (
-          <MessageItem 
-            key={msg._id}
-            msg={msg}
-            user={user}
-            formatTimestamp={formatTimestamp}
-          />
+          <MessageItem key={msg._id} msg={msg} user={user} formatTimestamp={formatTimestamp} />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -177,22 +146,9 @@ const CommunityChat = ({ community }) => {
   );
 };
 
-// Sub-components for better readability
+// ✅ MessageItem Component
 const MessageItem = ({ msg, user, formatTimestamp }) => {
-  console.log(msg);
-  // Handle system messages
-  if (msg.isSystemMessage) {
-    return (
-      <div className="text-center py-2">
-        <span className="text-sm text-gray-500 italic">
-          {msg.content}
-        </span>
-      </div>
-    );
-  }
-
-  // Regular user messages
-  const senderId = msg.sender?._id || msg.sender?.id;
+  const senderId = msg.sender?._id || msg.sender?.id || msg.sender;
   const isCurrentUser = senderId === user._id;
 
   return (
@@ -225,22 +181,18 @@ const MessageItem = ({ msg, user, formatTimestamp }) => {
   );
 };
 
+// ✅ EmojiPickerTrigger Component
 const EmojiPickerTrigger = ({ showEmoji, setShowEmoji, handleEmojiSelect }) => (
   <div className="relative">
-    <button
-      onClick={() => setShowEmoji(!showEmoji)}
-      className="text-gray-500 hover:text-blue-500"
-    >
+    <button onClick={() => setShowEmoji(!showEmoji)} className="text-gray-500 hover:text-blue-500">
       <Smile size={20} />
     </button>
     {showEmoji && (
       <div className="absolute bottom-10 left-0 z-10">
-        <EmojiPicker
-          onEmojiClick={(emoji) => {
-            handleEmojiSelect(emoji);
-            setShowEmoji(false);
-          }}
-        />
+        <EmojiPicker onEmojiClick={(emoji) => {
+          handleEmojiSelect(emoji);
+          setShowEmoji(false);
+        }} />
       </div>
     )}
   </div>
