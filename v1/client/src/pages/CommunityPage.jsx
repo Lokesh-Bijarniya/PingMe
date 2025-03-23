@@ -3,7 +3,7 @@ import CommunityList from "../components/community/CommunityList";
 import CommunityChat from "../components/community/CommunityChat";
 import CreateCommunityForm from "../components/community/CommunityForm"; 
 import { motion } from "framer-motion";
-import logoImg from "/src/assets/logoAuth.png";
+import logoImg from "../assets/logoAuth.png";
 
 
 const Community = () => {

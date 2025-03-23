@@ -24,7 +24,7 @@ import {
 import { toast } from "react-toastify";
 import apiClient from '../api/apiClient';
 import { motion } from "framer-motion";
-import logoImg from "/src/assets/logoAuth.png";
+import logoImg from "../assets/logoAuth.png";
 
 
 const AuthPage = () => {
