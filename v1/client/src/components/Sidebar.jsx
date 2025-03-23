@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Home, Phone, MessageCircle, Users, Settings, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { logoutUser } from "../redux/features/auth/authSlice"; 
-import logoImg from '/Logo.png'; 
+
 
 const Sidebar = () => {
   const location = useLocation();
@@ -32,7 +32,7 @@ const Sidebar = () => {
   return (
     <div className="h-full w-60 bg-gray-100 flex flex-col items-center shadow-md md:w-72 lg:w-1/5 border border-gray-300">
       <h2 className="text-lg font-bold w-full p-2 bg-white  border-b border-gray-300">
-      <img src={logoImg} alt="Logo" className="w-full h-20 " />
+      <img src="/Logo.png" alt="Logo" className="w-full h-20 " />
       </h2>
       <div className="w-full">
         {menuItems.map((item, index) => (
