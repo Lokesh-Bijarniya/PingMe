@@ -5,6 +5,8 @@ import ChatList from "../components/messages/ChatList";
 import ChatWindow from "../components/messages/ChatWindow";
 import { deleteChat } from "../redux/features/chat/chatSlice";
 import { motion } from "framer-motion";
+import logoImg from "/src/assets/logoAuth.png";
+
 
 const ChatPage = () => {
   const dispatch = useDispatch();
@@ -43,7 +45,7 @@ const ChatPage = () => {
           >
             {/* Logo with bounce effect */}
             <motion.img
-              src="/logoAuth.png"
+              src={logoImg}
               alt="Chat"
               className="w-28 h-28 mb-4"
               initial={{ opacity: 0, y: -20 }}

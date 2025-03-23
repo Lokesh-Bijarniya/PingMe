@@ -24,6 +24,7 @@ import {
 import { toast } from "react-toastify";
 import apiClient from '../api/apiClient';
 import { motion } from "framer-motion";
+import logoImg from "/src/assets/logoAuth.png";
 
 
 const AuthPage = () => {
@@ -168,7 +169,7 @@ const AuthPage = () => {
             }}
           >
             <motion.img
-              src="/logoAuth.png"
+              src={logoImg}
               alt="PingMe Logo"
               className="w-64 h-64 mx-auto hover:rotate-12 transition-transform duration-300"
               whileHover={{ scale: 1.1 }}
@@ -219,7 +220,7 @@ const AuthPage = () => {
               whileHover={{ scale: 1.05 }}
             >
               <img
-                src="/logoAuth.png"
+                src={logoImg}
                 alt="PingMe Logo"
                 className="w-24 h-24 mx-auto"
               />
