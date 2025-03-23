@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import CommunityList from "../components/community/CommunityList";
 import CommunityChat from "../components/community/CommunityChat";
 import CreateCommunityForm from "../components/community/CommunityForm"; 
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
+import logo from '/public/logoAuth.png'
 
 const Community = () => {
   const [selectedCommunity, setSelectedCommunity] = useState(null);
@@ -37,7 +38,7 @@ const Community = () => {
     >
       {/* Logo with bounce effect */}
       <motion.img
-        src="../../public/logoAuth.png"
+        src={logo}
         alt="Chat"
         className="mx-auto mb-4 w-28 h-28"
         initial={{ opacity: 0, y: -20 }}
