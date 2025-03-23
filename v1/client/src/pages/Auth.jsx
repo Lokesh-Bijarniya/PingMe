@@ -219,7 +219,7 @@ const AuthPage = () => {
               whileHover={{ scale: 1.05 }}
             >
               <img
-                src={logoImg}
+                src="/logoAuth.png"
                 alt="PingMe Logo"
                 className="w-24 h-24 mx-auto"
               />
