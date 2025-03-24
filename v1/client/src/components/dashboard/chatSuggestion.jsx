@@ -25,44 +25,56 @@ const ChatSuggestions = () => {
 
   const handleGetSuggestions = async () => {
     if (!message.trim()) return;
-
+  
     setLoading(true);
     setSuggestions([]);
     setError(null);
-
-    try {
-      const response = await axios.post(
-        "https://api.edenai.run/v2/llm/chat",
-        {
-          providers: ["google"],
-          model: "gemini-1.5-flash",
-          messages: [{ role: "user", content: message }],
-          temperature: 0.7,
-          max_tokens: 200
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_APP_EDEN_AI_API_KEY}`,
-            "Content-Type": "application/json",
+  
+    for (let i = 0; i < 3; i++) { // Retry up to 3 times
+      try {
+        const response = await axios.post(
+          "https://api.edenai.run/v2/llm/chat",
+          {
+            providers: ["google"],
+            model: "gemini-1.5-flash",
+            messages: [{ role: "user", content: message }],
+            temperature: 0.7,
+            max_tokens: 200
           },
+          {
+            headers: {
+              Authorization: `Bearer ${import.meta.env.VITE_APP_EDEN_AI_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+  
+        if (!response.data.choices) {
+          throw new Error("No choices returned from the API");
         }
-      );
-
-      const result = {
-        content: response.data.choices[0].message.content,
-        model: response.data.model,
-        cost: response.data.cost
-      };
-
-      setSuggestions([result]);
-    } catch (err) {
-      console.error("Error:", err);
-      setError(err.response?.data?.error?.message || "An error occurred");
-      toast.error("Failed to generate suggestions");
-    } finally {
-      setLoading(false);
+  
+        const result = {
+          content: response.data.choices[0].message.content,
+          model: response.data.model,
+          cost: response.data.cost
+        };
+  
+        setSuggestions([result]);
+        return; // Exit loop if successful
+      } catch (err) {
+        console.error(`Attempt ${i + 1} failed:`, err.response?.data || err.message);
+        if (i === 2) {
+          setError(err.response?.data?.error?.message || "An error occurred");
+          toast.error("Failed to generate suggestions");
+        } else {
+          await new Promise((res) => setTimeout(res, 3000)); // Wait 3 sec before retrying
+        }
+      }
     }
+  
+    setLoading(false);
   };
+  
 
   return (
     <motion.div
