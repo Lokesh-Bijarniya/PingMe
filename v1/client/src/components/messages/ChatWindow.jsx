@@ -1,25 +1,26 @@
-import React, { useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchMessages,
   deleteChat,
   setSelectedChat,
   fetchChats,
-  removeChat
+  removeChat,
+  clearSelectedChat
 } from "../../redux/features/chat/chatSlice";
 import SocketService from "../../services/socket";
 import MessageInput from "./MessageInput";
 import ChatWindowNavbar from "./chatWindow-bar";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import {ArrowLeft} from 'lucide-react'
 
 const ChatWindow = () => {
   const dispatch = useDispatch();
   const messagesEndRef = useRef(null);
   const { selectedChat, messages } = useSelector((state) => state.chat);
   const currentUser = useSelector((state) => state.auth.user); // Get current user
-
-
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); 
 
 
   // console.log("chat-wind-msg",messages);
@@ -42,15 +43,23 @@ const ChatWindow = () => {
   //   }
   // }, [selectedChat, messages, dispatch, currentUser]);
 
+
+   // ✅ Listen for window resize to update `isMobile`
+   useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // ✅ Scroll to bottom
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
-
+  // ✅ Scroll to bottom when messages update
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages[selectedChat?.chatId]]);
 
   // ✅ Handle sending messages & files
@@ -148,6 +157,19 @@ const ChatWindow = () => {
 
   return (
     <div className="flex flex-1 flex-col h-full">
+
+{isMobile && selectedChat && (
+        <div className="fixed top-0 w-full z-50 flex items-center gap-3 px-4 py-3 bg-white shadow-md border-b w-full">
+          <ArrowLeft
+            className="w-6 h-6 cursor-pointer"
+            onClick={() => dispatch(clearSelectedChat())}
+          />
+          <span className="font-semibold">Back</span>
+        </div>
+      )}
+
+
+
       <ChatWindowNavbar chat={selectedChat} onDeleteChat={handleDeleteChat} />
       {selectedChat ? (
         <>

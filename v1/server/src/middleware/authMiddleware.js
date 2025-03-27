@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
+import Community from "../models/communityModel.js";
 
 const verifyToken = async (req, res, next) => {
   // console.log("verify-token-hit");
@@ -47,4 +48,30 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-export default verifyToken;
+
+
+// ✅ Middleware to Check if User is an Admin of the Community
+const requireCommunityAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params; // Community ID
+    const userId = req.user.id; // Authenticated user
+
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({ message: "Community not found" });
+    }
+
+    if (!community.admins.includes(userId)) {
+      return res.status(403).json({ message: "Admin privileges required" });
+    }
+
+    // ✅ User is an admin, proceed to the next middleware/controller
+    next();
+  } catch (error) {
+    console.error("RBAC Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+export {verifyToken,requireCommunityAdmin};

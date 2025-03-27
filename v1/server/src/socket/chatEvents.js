@@ -2,11 +2,12 @@ import Chat from "../models/chatModel.js";
 import Message from "../models/messageModel.js";
 import User from "../models/userModel.js";
 import handleFileUpload from "../utils/fileUploadHandler.js";
+import redis from '../config/redis.js';
 
 export const setupChatEvents = (io, connectedUsers) => {
   const chatNamespace = io.of("/chat");
 
-  chatNamespace.on("connection", (socket) => {
+  chatNamespace.on("connection", async (socket) => {
     const userId = socket.user?.id;
     if (!userId) return;
     console.log(`✅ [Chat] User connected: ${userId}`);
@@ -17,11 +18,16 @@ export const setupChatEvents = (io, connectedUsers) => {
         connectedUsers.set(userId, new Set());
       }
       connectedUsers.get(userId).add(socket.id);
-      User.findByIdAndUpdate(userId, {
+    
+      // ✅ Await the update to ensure it executes
+      await User.findByIdAndUpdate(userId, {
         lastActive: new Date(),
         isActive: true,
       });
+    
+      console.log(`✅ Updated isActive for user ${userId}`);
     }
+    
 
     // Emit online status for chat participants
     if (connectedUsers.get(userId).size === 1) {
@@ -63,7 +69,7 @@ export const setupChatEvents = (io, connectedUsers) => {
           timestamp: new Date(),
           status: "sent",
         });
-
+        
         await message.save();
 
         // Update chat last message
@@ -100,6 +106,10 @@ export const setupChatEvents = (io, connectedUsers) => {
 
         // Emit the new message to all participants in the chat room
         chatNamespace.to(chatId).emit("NEW_MESSAGE", response);
+
+         // ❌ Clear cache for this chat so it fetches fresh messages
+    await redis.del(`chat:${chatId}:messages`);
+    console.log(`🗑️ Cleared Redis cache for chat:${chatId}:messages`);
       } catch (error) {
         console.error("Message error:", error);
         socket.emit("ERROR", { message: error.message });
@@ -157,23 +167,31 @@ export const setupChatEvents = (io, connectedUsers) => {
     });
 
     // Handle disconnection
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       console.log(`❌ [Chat] User disconnected from /chat: ${userId}`);
-
+    
       if (connectedUsers.has(userId)) {
         const sockets = connectedUsers.get(userId);
         sockets.delete(socket.id);
-        User.findByIdAndUpdate(userId, {
-          lastActive: new Date(),
-          isActive: false,
-        });
-
+    
+        // If user has no active sockets, mark as offline (after short delay)
         if (sockets.size === 0) {
           connectedUsers.delete(userId);
           console.log(`🚫 [Chat] User ${userId} is now fully offline.`);
-          io.emit("ONLINE_STATUS", { userId, isOnline: false });
+    
+          setTimeout(async () => {
+            const activeSockets = connectedUsers.get(userId);
+            if (!activeSockets) {
+              await User.findByIdAndUpdate(userId, {
+                lastActive: new Date(),
+                isActive: false,
+              });
+    
+              io.emit("ONLINE_STATUS", { userId, isOnline: false });
+            }
+          }, 5000); 
         }
       }
-    });
+    });    
   });
 };

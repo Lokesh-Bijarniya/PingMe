@@ -22,5 +22,8 @@ const messageSchema = new mongoose.Schema({
   isSystemMessage: { type: Boolean, default: false }
 });
 
+
+
+
 const Message = mongoose.model("Message", messageSchema);
 export default Message;

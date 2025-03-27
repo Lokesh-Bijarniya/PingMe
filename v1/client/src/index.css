@@ -37,7 +37,9 @@ body {
   color: #ffffff;
 }
 
-
+body {
+  touch-action: pan-y;
+}
 
 /* Dark Mode Fixes */
 .dark {

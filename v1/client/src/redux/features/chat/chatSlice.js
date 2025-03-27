@@ -193,6 +193,9 @@ const chatSlice = createSlice({
     clearSearchedUsers: (state) => {
       state.searchedUsers = [];
     },
+    clearSelectedChat: (state) => {
+      state.selectedChat = null;
+    }
   },
 
   extraReducers: (builder) => {
@@ -234,6 +237,7 @@ export const {
   clearSearchedUsers,
   addChat,
   removeChat,
+  clearSelectedChat
 } = chatSlice.actions;
 
 // ✅ Export reducer

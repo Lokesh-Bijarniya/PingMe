@@ -5,7 +5,7 @@ import {
   deleteDirectChat,
   getMessages
 } from '../controllers/chatController.js';
-import verifyToken from '../middleware/authMiddleware.js';
+import {verifyToken} from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 

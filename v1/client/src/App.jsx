@@ -19,7 +19,6 @@ import ResetPassword from "./pages/ResetPassword";
 const App = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, token} = useSelector((state) => state.auth);
-  const { selectedChat } = useSelector((state) => state.chat);
   const location = useLocation();
 
   // WebSocket connection and event listeners
@@ -36,15 +35,6 @@ const App = () => {
       };
     }
   }, [isAuthenticated, token, dispatch]);
-  
-
-  // 🔄 Join Selected Chat Room
-  useEffect(() => {
-    if (selectedChat && selectedChat.chatId) {
-      console.log(`📩 Joining chat room: ${selectedChat.chatId}`);
-      SocketService.chatSocket?.emit("JOIN_CHAT", { chatId: selectedChat.chatId });
-    }
-  }, [selectedChat]);
 
 
   useEffect(() => {
@@ -69,7 +59,7 @@ const App = () => {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen md:h-screen">
       {isAuthenticated && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Routes>

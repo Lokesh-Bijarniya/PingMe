@@ -8,7 +8,7 @@ import {
   getCommunityMembers,
   leaveCommunity,
 } from '../controllers/communityController.js';
-import verifyToken from '../middleware/authMiddleware.js';
+import {verifyToken, requireCommunityAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -27,7 +27,7 @@ router.post('/:id/leave', verifyToken, leaveCommunity);
 
 
 // Delete community
-router.delete('/delete/:id', verifyToken, deleteCommunity);
+router.delete('/delete/:id', verifyToken, requireCommunityAdmin, deleteCommunity);
 
 
 // Join community

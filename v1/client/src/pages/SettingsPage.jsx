@@ -353,9 +353,9 @@ const SettingsPage = () => {
         </div>
 
         {/* Logout */}
-        <div className="bg-white p-5 shadow-md rounded-lg">
+        <div className="bg-white p-5 pb-8 shadow-md rounded-lg">
           <button
-            className="w-full px-4 py-2 text-red-600 bg-gray-100 rounded-md hover:bg-gray-200 flex items-center justify-center"
+            className="w-full px-4 py-2  text-red-600 bg-gray-100 rounded-md hover:bg-gray-200 flex items-center justify-center"
             onClick={() => dispatch(logoutUser())}
           >
             <LogOut className="mr-2" /> Logout

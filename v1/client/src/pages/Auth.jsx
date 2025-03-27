@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   registerUser,
   loginUser,
@@ -29,6 +29,7 @@ import { motion } from "framer-motion";
 const AuthPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { loading, error } = useSelector((state) => state.auth);
   const [isSignup, setIsSignup] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -43,8 +44,9 @@ const AuthPage = () => {
 
   useEffect(() => {
     // Extract token and refreshToken from URL if present
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(location.search);
     const token = urlParams.get("token");
+    // console.log("token",token);
   
     if (token) {
 
@@ -168,7 +170,7 @@ const AuthPage = () => {
             }}
           >
             <motion.img
-              src="/logoAuth.png"
+              src="/LogoAuth.png"
               alt="PingMe Logo"
               className="w-64 h-64 mx-auto hover:rotate-12 transition-transform duration-300"
               whileHover={{ scale: 1.1 }}
@@ -219,7 +221,7 @@ const AuthPage = () => {
               whileHover={{ scale: 1.05 }}
             >
               <img
-                src="/logoAuth.png"
+                src="/LogoAuth.png"
                 alt="PingMe Logo"
                 className="w-24 h-24 mx-auto"
               />

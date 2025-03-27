@@ -83,7 +83,7 @@ const CommunityChat = ({ community }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white rounded-lg shadow-sm">
+    <div className="h-full relative flex-1 flex flex-col h-full bg-white rounded-lg shadow-sm">
       {/* Chat Header */}
       <div className="flex justify-between border-b p-4 bg-gray-100 rounded-t-lg">
         <div className="flex items-center gap-3">
@@ -120,7 +120,7 @@ const CommunityChat = ({ community }) => {
       </div>
 
       {/* Message Input */}
-      <div className="border-t p-4 bg-white rounded-b-lg">
+      <div className="border-t not-md:mb-16 p-4 bg-white rounded-b-lg">
         <div className="flex items-center gap-2">
           <EmojiPickerTrigger 
             showEmoji={showEmoji}

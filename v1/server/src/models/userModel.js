@@ -8,17 +8,19 @@ const userSchema = new mongoose.Schema({
   password: { type: String },
   googleId: { type: String, unique: true, sparse: true },
   avatar: { type: String, default: "https://cdn-icons-png.flaticon.com/128/1144/1144760.png" },
-  refreshToken: { type: String, select: false }, // Store refresh token
-
+  refreshToken: { type: String, select: false },
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },
   verificationTokenExpires: { type: Date },
   resetToken: { type: String },
   resetTokenExpires: { type: Date },
-  
-  isActive : { type: Boolean, default: false},
+  isActive: { type: Boolean, default: false },
   lastActive: Date,
 }, { timestamps: true });
+
+// ✅ Keep only necessary indexes
+userSchema.index({ name: "text" });  // For searching by name
+userSchema.index({ lastActive: -1 }); // For optimizing queries
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {

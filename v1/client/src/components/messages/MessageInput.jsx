@@ -59,7 +59,7 @@ const MessageInput = ({ onSend, onTyping }) => {
   const handleRemoveFile = () => setFile(null);
 
   return (
-    <div className="flex gap-2 items-center p-2 border-t">
+    <div className="flex gap-2 items-center p-2 border-t not-md:mb-16">
       {/* Emoji Picker */}
       <button onClick={() => setShowEmoji(!showEmoji)} className="text-gray-500 hover:text-blue-500">
         <Smile size={20} />

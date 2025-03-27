@@ -38,5 +38,13 @@ const communitySchema = new mongoose.Schema({
   }
 });
 
+
+// ✅ Index for faster community search
+communitySchema.index({ name: "text", description: "text" });
+
+// ✅ Index for retrieving communities by created date
+communitySchema.index({ createdAt: -1 });
+
+
 const Community = mongoose.model("Community", communitySchema);
 export default Community;

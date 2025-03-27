@@ -12,7 +12,7 @@ import SocketService from "../../services/socket";
 import { Users } from "lucide-react";
 import { format, isYesterday, isToday } from "date-fns";
 import { toast } from "react-toastify";
-import communitySocket from '../../services/communitySocket';
+import communitySocket from "../../services/communitySocket";
 
 const CommunityList = ({ onSelectCommunity }) => {
   const dispatch = useDispatch();
@@ -40,7 +40,7 @@ const CommunityList = ({ onSelectCommunity }) => {
         // }
 
         toast.success("Community joined successfully!");
-       
+
         onSelectCommunity(result.payload.community);
         dispatch(fetchCommunities()); // Refresh the list
       }
@@ -76,7 +76,7 @@ const CommunityList = ({ onSelectCommunity }) => {
   const handleSearch = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
+
     // Only dispatch search for non-empty queries
     if (query.trim()) {
       dispatch(searchCommunities(query));
@@ -98,7 +98,7 @@ const CommunityList = ({ onSelectCommunity }) => {
   };
 
   return (
-    <div className="w-2/5 border-r p-4 bg-gray-50 flex flex-col">
+    <div className="border-r p-4 bg-gray-50 flex flex-1 flex-col">
       {/* Create Community Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -179,56 +179,59 @@ const CommunityList = ({ onSelectCommunity }) => {
         </h3>
         <div className="space-y-3 mb-6">
           {joinedCommunities.length > 0 ? (
-           joinedCommunities
-            .slice() // Create a copy to avoid mutating original array
-            .sort((a, b) => {
-              const aTime = a.chat?.lastMessage?.timestamp || 0;
-              const bTime = b.chat?.lastMessage?.timestamp || 0;
-              return new Date(bTime) - new Date(aTime); // Descending order
-            })
-            .map((community) => (
-              <div
-                key={community._id}
-                className="p-3 bg-white rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-shadow"
-                onClick={() => {
-                  onSelectCommunity(community);
-                  dispatch(setCurrentCommunity(community));
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Users />
-                  </div>
-                  <div className="w-full">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-lg">
-                        {community.name}
-                      </h3>
-                      <span className="ml-2 text-gray-400 text-xs">
-                        {formatDate(community.chat?.lastMessage?.timestamp || community.createdAt)} 
-                      </span>
+            joinedCommunities
+              .slice() // Create a copy to avoid mutating original array
+              .sort((a, b) => {
+                const aTime = a.chat?.lastMessage?.timestamp || 0;
+                const bTime = b.chat?.lastMessage?.timestamp || 0;
+                return new Date(bTime) - new Date(aTime); // Descending order
+              })
+              .map((community) => (
+                <div
+                  key={community._id}
+                  className="p-3 bg-white rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-shadow"
+                  onClick={() => {
+                    onSelectCommunity(community);
+                    dispatch(setCurrentCommunity(community));
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Users />
                     </div>
-
-                    <p className="text-sm text-gray-500">
-                      {community.chat?.lastMessage && (
-                        <div>
-                          {community.chat.lastMessage.sender ? (
-                            <p>
-                              <span className="font-bold mr-1">
-                                {community.chat.lastMessage.sender?.name}:
-                              </span>
-                               {community.chat.lastMessage.content}
-                            </p>
-                          ) : (
-                            <p>{community.chat.lastMessage.content}</p>
+                    <div className="w-full">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">
+                          {community.name}
+                        </h3>
+                        <span className="ml-2 text-gray-400 text-xs">
+                          {formatDate(
+                            community.chat?.lastMessage?.timestamp ||
+                              community.createdAt
                           )}
-                        </div>
-                      )}
-                    </p>
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-gray-500">
+                        {community.chat?.lastMessage && (
+                          <div>
+                            {community.chat.lastMessage.sender ? (
+                              <p>
+                                <span className="font-bold mr-1">
+                                  {community.chat.lastMessage.sender?.name}:
+                                </span>
+                                {community.chat.lastMessage.content}
+                              </p>
+                            ) : (
+                              <p>{community.chat.lastMessage.content}</p>
+                            )}
+                          </div>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))
           ) : (
             <div className="text-center text-gray-500 p-4 bg-gray-100 rounded-lg">
               <p className="text-lg">
@@ -241,63 +244,66 @@ const CommunityList = ({ onSelectCommunity }) => {
           )}
         </div>
 
+        <h3 className="text-sm font-semibold text-gray-500 mb-2">
+          Discover Communities
+        </h3>
 
-<h3 className="text-sm font-semibold text-gray-500 mb-2">
-  Discover Communities
-</h3>
-
-{discoveredCommunities.length > 0 || searchQuery ? (
-  <div className="space-y-3">
-   {discoveredCommunities
-  .slice() // Create a copy to avoid mutating original array
-  .sort((a, b) => a.name.localeCompare(b.name)) // Alphabetical order
-  .map((community) => (
-      <div
-        key={community._id}
-        className="p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-      >
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <Users />
-            </div>
-            <div>
-              <h3 className="font-semibold">{community.name}</h3>
-              <p className="text-sm text-gray-500">
-                {community.members?.length} members
-              </p>
-            </div>
+        {discoveredCommunities.length > 0 || searchQuery ? (
+          <div className="space-y-3">
+            {discoveredCommunities
+              .slice() // Create a copy to avoid mutating original array
+              .sort((a, b) => a.name.localeCompare(b.name)) // Alphabetical order
+              .map((community) => (
+                <div
+                  key={community._id}
+                  className="p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Users />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{community.name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {community.members?.length} members
+                        </p>
+                      </div>
+                    </div>
+                    {!joinedCommunities.some(
+                      (jc) => jc._id === community._id
+                    ) && (
+                      <button
+                        onClick={() => {
+                          handleJoin(community._id);
+                        }}
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-green-600 flex items-center rounded-full"
+                      >
+                        <span className="text-sm">JOIN</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
           </div>
-          {!joinedCommunities.some(jc => jc._id === community._id) && (
-            <button
-              onClick={() => {
-                handleJoin(community._id);
-              }
-              }
-              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-green-600 flex items-center rounded-full"
-            >
-              <span className="text-sm">JOIN</span>
-            </button>
-          )}
-        </div>
-      </div>
-    ))}
-  </div>
-) : (
-  <div className="text-center text-gray-500 mt-4 bg-gray-100 p-4 rounded-lg">
-    {searchQuery ? (
-      <p className="text-sm">No communities found matching your search.</p>
-    ) : joinedCommunities.length === 0 ? (
-      <p className="text-sm">
-        🚀 No communities available yet. Be the first to create one!
-      </p>
-    ) : (
-      <p className="text-sm">
-        🎉 You've joined all available communities! Check back later for new ones.
-      </p>
-    )}
-  </div>
-)}
+        ) : (
+          <div className="text-center text-gray-500 mt-4 bg-gray-100 p-4 rounded-lg">
+            {searchQuery ? (
+              <p className="text-sm">
+                No communities found matching your search.
+              </p>
+            ) : joinedCommunities.length === 0 ? (
+              <p className="text-sm">
+                🚀 No communities available yet. Be the first to create one!
+              </p>
+            ) : (
+              <p className="text-sm">
+                🎉 You've joined all available communities! Check back later for
+                new ones.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ import {
   verifyEmail,
 } from "../controllers/authController.js";
 import { googleLogin } from "../controllers/googleAuthController.js";
-import verifyToken from "../middleware/authMiddleware.js";
+import {verifyToken} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

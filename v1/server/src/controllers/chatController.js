@@ -3,6 +3,7 @@ import User from "../models/userModel.js";
 import Community from "../models/communityModel.js";
 import Message from "../models/messageModel.js";
 import { fetchChats } from "../utils/chatHandler.js";
+import redis from '../config/redis.js';
 
 
 
@@ -74,28 +75,28 @@ export const getMessages = async (req, res) => {
     const { limit = 50, offset = 0 } = req.query;
     const userId = req.user.id;
 
+    // Check if chat exists in Redis
+    const cachedMessages = await redis.get(`chat:${chatId}:messages`);
+    if (cachedMessages) {
+      console.log("✅ Serving messages from Redis cache");
+      return res.json(JSON.parse(cachedMessages));
+    }
+
+    // If cache miss, fetch from database
     const chat = await Chat.findById(chatId);
     if (!chat) return res.status(404).json({ message: "Chat not found" });
 
-    // Check access
     if (!chat.participants.includes(userId)) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Fetch messages
     const messages = await Message.find({ chat: chatId })
       .sort({ timestamp: -1 })
       .skip(parseInt(offset))
       .limit(parseInt(limit))
       .populate("sender", "name avatar");
 
-    // Reset unread messages
-    if (chat.unreadCount?.get(userId)) {
-      chat.unreadCount.set(userId, 0);
-      await chat.save();
-    }
-
-    res.json(messages.map(msg => ({
+    const formattedMessages = messages.map(msg => ({
       messageId: msg._id,
       sender: msg.isSystemMessage ? null : { id: msg.sender._id, name: msg.sender.name, avatar: msg.sender.avatar },
       content: msg.content,
@@ -103,12 +104,18 @@ export const getMessages = async (req, res) => {
       timestamp: msg.timestamp,
       isSystem: msg.isSystemMessage,
       fileType: msg.fileType
-    })));
+    }));
+
+    // Store the messages in Redis with expiration time (e.g., 5 minutes)
+    await redis.setEx(`chat:${chatId}:messages`, 300, JSON.stringify(formattedMessages));
+
+    res.json(formattedMessages);
   } catch (error) {
     console.error("🔥 Error fetching messages:", error);
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // ✅ Update message status
 export const updateMessageStatus = async (req, res) => {

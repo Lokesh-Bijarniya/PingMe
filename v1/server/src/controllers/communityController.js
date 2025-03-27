@@ -4,6 +4,7 @@ import Chat from "../models/chatModel.js";
 import Message from "../models/messageModel.js";
 import User from "../models/userModel.js";
 import { createSystemMessage } from "../utils/messageHandler.js";
+import redis from "../config/redis.js";
 
 
 // ✅ Create new community with linked chat
@@ -52,6 +53,14 @@ export const createCommunity = async (req, res) => {
 // Get all communities
 export const getCommunities = async (req, res) => {
   try {
+    // 🔥 Check Redis Cache
+    const cachedCommunities = await redis.get("communities:list");
+    if (cachedCommunities) {
+      console.log("✅ Communities Data from Redis");
+      return res.json(JSON.parse(cachedCommunities));
+    }
+
+    // Fetch data from MongoDB
     const communities = await Community.find()
       .populate({
         path: "members",
@@ -98,12 +107,15 @@ export const getCommunities = async (req, res) => {
       createdAt: community.createdAt
     }));
 
+    // 🔹 Store result in Redis with expiration (e.g., 10 minutes)
+    await redis.setEx("communities:list", 600, JSON.stringify(formattedCommunities));
+
     res.json(formattedCommunities);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error fetching communities:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // Get community members
 export const getCommunityMembers = async (req, res) => {
@@ -152,33 +164,36 @@ export const getCommunityMessages = async (req, res) => {
 };
 
 
-// ✅ Delete community (Admin only)
+// ✅ Delete community (Only for Admins)
 export const deleteCommunity = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
 
+    // ✅ Fetch community
     const community = await Community.findById(id);
-    if (!community.admins.includes(userId)) {
-      return res.status(403).json({ message: "Admin privileges required" });
+    if (!community) {
+      return res.status(404).json({ message: "Community not found" });
     }
 
+    // ✅ Store chat ID before deletion
+    const chatId = community.chat;
 
-    // Delete related data
-    await Chat.findByIdAndDelete(community.chat);
-    await Message.deleteMany({ chat: community.chat });
+    // ✅ Delete associated chat & messages
+    await Chat.findByIdAndDelete(chatId);
+    await Message.deleteMany({ chat: chatId });
     await Community.findByIdAndDelete(id);
 
-
-    // Notify community members
+    // ✅ Notify community members (WebSocket)
     const io = req.app.locals.io;
-    if (io) io.to(chatId).emit("CHAT_DELETED", { chatId });
+    if (io) io.to(chatId.toString()).emit("CHAT_DELETED", { chatId });
 
     res.json({ message: "Community deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error deleting community:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 export const leaveCommunity = async (req, res) => {

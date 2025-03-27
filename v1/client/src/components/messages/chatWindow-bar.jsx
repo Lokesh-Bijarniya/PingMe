@@ -19,7 +19,7 @@ const ChatWindowNavbar = ({ chat, onDeleteChat }) => {
   const lastActive = user?.lastActive || null
 
 
-   console.log("online status", onlineStatus);
+  //  console.log("online status", onlineStatus);
 
   // ✅ Close dropdown menu when clicking outside
   useEffect(() => {
@@ -46,7 +46,7 @@ const ChatWindowNavbar = ({ chat, onDeleteChat }) => {
   
 
   return (
-    <div className="flex items-center justify-between border-b border-b-gray-300 p-4 bg-gray-100 relative">
+    <div className="flex items-center justify-between border-b border-b-gray-300 p-4 bg-gray-100 not-lg:relative top-10">
       {/* 🔹 Left Side: User Info */}
       <div className="flex items-center gap-3">
         <img
