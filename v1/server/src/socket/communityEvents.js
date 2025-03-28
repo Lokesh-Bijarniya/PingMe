@@ -59,6 +59,11 @@ export const setupCommunityEvents = (io, connectedUsers) => {
 
         // console.log("newMsg",newMessage);
 
+        // Ensure unreadCounts is initialized
+if (!chat.unreadCounts) {
+  chat.unreadCounts = new Map();
+}
+
         // ✅ Update unread counts for all members (except sender)
     chat.participants.forEach((participant) => {
       if (!participant.equals(senderId)) {
@@ -68,6 +73,7 @@ export const setupCommunityEvents = (io, connectedUsers) => {
 
          // Update lastMessage in Chat
          chat.lastMessage = newMessage._id;
+         console.log(chat.lastMessage);
   
         await chat.save();
 
@@ -80,7 +86,7 @@ export const setupCommunityEvents = (io, connectedUsers) => {
           message: newMessage 
         });
 
-        // console.log("newMsg sent to the community");
+        console.log("newMsg sent to the community");
         
       } catch (error) {
         console.error("Message error:", error);
