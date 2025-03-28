@@ -50,24 +50,28 @@ const ChatSuggestions = () => {
             },
           }
         );
-
+    
         if (!response.data.choices) {
           throw new Error("No choices returned from the API");
         }
-
+    
         const result = {
           content: response.data.choices[0].message.content,
           model: response.data.model,
           cost: response.data.cost,
         };
-
+    
         setSuggestions([result]);
+    
+        // ✅ Stop loading since we got a successful response
+        setLoading(false);
         return;
       } catch (err) {
         console.error(
           `Attempt ${i + 1} failed:`,
           err.response?.data || err.message
         );
+    
         if (i === 2) {
           setError(err.response?.data?.error?.message || "An error occurred");
           toast.error("Failed to generate suggestions");
@@ -76,10 +80,11 @@ const ChatSuggestions = () => {
         }
       }
     }
-
+    
+    // ✅ Stop loading if all retries fail
     setLoading(false);
   };
-
+    
   return (
     <motion.div
       className="bg-white shadow-xl rounded-xl p-4 sm:p-6 max-w-full sm:max-w-2xl h-screen sm:h-auto mx-auto mb-6 relative overflow-hidden"
